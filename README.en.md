@@ -35,4 +35,4 @@ Software architecture description
 5.  The manual of Gitee [https://gitee.com/help](https://gitee.com/help)
 6.  The most popular members  [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
 
-#### Owner 
+#### Owner List 
