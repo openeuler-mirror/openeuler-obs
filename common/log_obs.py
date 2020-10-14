@@ -16,7 +16,8 @@ def get_logger():
     logfile = os.path.join(current_path, "../log", "openeuler-obs.log")
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s:%(message)s')
+    formatter = logging.Formatter('%(asctime)s - '\
+            '%(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s')
     file_handler = logging.FileHandler(logfile, mode='w')
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(formatter)
@@ -29,4 +30,3 @@ def get_logger():
 
 
 logger = get_logger()
-
