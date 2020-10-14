@@ -29,8 +29,8 @@ def get_logger():
     return logger
 
 
-logger = get_logger()
+log = get_logger()
 
 
 if __name__ == "__main__":
-    logger.debug("test")
+    log.debug("test")
