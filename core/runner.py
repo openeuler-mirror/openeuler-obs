@@ -4,7 +4,7 @@
 main script for running
 """
 
-from common.log_obs import logger
+from common.log_obs import log
 
 
 class Runner(object):
@@ -24,6 +24,6 @@ class Runner(object):
         run main
         return:
         """
-        logger.debug("test")
+        log.debug("test")
         
 

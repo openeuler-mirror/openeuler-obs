@@ -12,8 +12,13 @@ def get_logger():
     get logger object
     return: logger object
     """
-    current_path = os.path.split(os.path.realpath(__file__))[0]
-    logfile = os.path.join(current_path, "../log", "openeuler-obs.log")
+    log_path = os.path.join(os.path.split(os.path.realpath(__file__))[0], "../log")
+    if not os.path.exists(log_path):
+        os.mkdir(log_path)
+    elif not os.path.isdir(log_path):
+        os.remove(log_path)
+        os.mkdir(log_path)
+    logfile = os.path.join(log_path, "openeuler-obs.log")
     logger = logging.getLogger("")
     logger.setLevel(logging.DEBUG)
     formatter = logging.Formatter('%(asctime)s - '\

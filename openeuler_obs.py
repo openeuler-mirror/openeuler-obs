@@ -6,7 +6,7 @@ main script for openeuler-obs
 import argparse
 import os
 import sys
-from common.log_obs import logger
+from common.log_obs import log
 from core.runner import Runner
 
 
@@ -19,6 +19,6 @@ args = par.parse_args()
 
 #apply
 obs_meta_path = args.obs
-logger.info(obs_meta_path)
+log.info(obs_meta_path)
 run = Runner(obs_path=args.obs, project=args.project)
 run.run()
