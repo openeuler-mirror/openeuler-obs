@@ -19,7 +19,7 @@ class ParserConfigIni(object):
         init parmers by config.ini
         return: None
         """
-        self.update_enable_flag = {}
+        self.update_enabled_flag = {}
         config_path = os.path.join(
                 os.path.split(os.path.realpath(__file__))[0],
                 "../config/config.ini")
@@ -34,17 +34,17 @@ class ParserConfigIni(object):
         """
         branch_list = self.config.options("update_enable")
         for b in branch_list:
-            self.update_enable_flag[b] = self.config.get("update_enable", b)
+            self.update_enabled_flag[b] = self.config.get("update_enable", b)
 
-    def get_update_enable_flag(self):
+    def get_update_enabled_flag(self):
         """
-        get update enable flag for branch
+        get update enabled flag for branch
         return: update enable flag dict
         """
-        return self.update_enable_flag
+        return self.update_enabled_flag
 
 
 if __name__ == "__main__":
     p = ParserConfigIni()
-    update_enable_flag = p.get_update_enable_flag()
-    print(update_enable_flag)
+    update_enabled_flag = p.get_update_enabled_flag()
+    print(update_enabled_flag)
