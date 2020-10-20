@@ -1,9 +1,11 @@
 #/bin/env python3
 # -*- encoding=utf8 -*-
 """
+created by: miaokaibo
+date: 2020-10-20 9:55
+
 main script for running
 """
-
 from common.log_obs import log
 
 
@@ -17,7 +19,8 @@ class Runner(object):
         kwargs: dict, init dict by "a"="A" style
         return:
         """
-        print(kwargs)
+        self.kwargs = kwargs
+        print(self.kwargs)
     
     def run(self):
         """
