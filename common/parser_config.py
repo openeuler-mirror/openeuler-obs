@@ -8,6 +8,9 @@ parser config.ini
 """
 import os
 import configparser
+from common import common
+#import common
+
 
 
 class ParserConfigIni(object):
@@ -26,6 +29,7 @@ class ParserConfigIni(object):
         self.config = configparser.ConfigParser()
         self.config.read(config_path, encoding='utf-8')
         self._init_update_enabled_flag()
+        self._init_ignored_repo()
 
     def _init_update_enabled_flag(self):
         """
@@ -33,8 +37,9 @@ class ParserConfigIni(object):
         return: None
         """
         branch_list = self.config.options("update_enable")
+        print(branch_list)
         for b in branch_list:
-            self.update_enabled_flag[b] = self.config.get("update_enable", b)
+            self.update_enabled_flag[b] = common.str_to_bool(self.config.get("update_enable", b))
 
     def get_update_enabled_flag(self):
         """
@@ -42,6 +47,20 @@ class ParserConfigIni(object):
         return: update enable flag dict
         """
         return self.update_enabled_flag
+
+    def _init_ignored_repo(self):
+        """
+        init ignored repo list
+        return: None
+        """
+        self.ignored_repos = self.config.get("ignore_repo", "name").split(" ")
+
+    def get_ignored_repo(self):
+        """
+        get ignored repo
+        return: ignored repo list
+        """
+        return self.ignored_repos
 
 
 if __name__ == "__main__":
