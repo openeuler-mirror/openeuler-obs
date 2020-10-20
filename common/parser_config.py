@@ -25,9 +25,9 @@ class ParserConfigIni(object):
                 "../config/config.ini")
         self.config = configparser.ConfigParser()
         self.config.read(config_path, encoding='utf-8')
-        self._init_update_enable_flag()
+        self._init_update_enabled_flag()
 
-    def _init_update_enable_flag(self):
+    def _init_update_enabled_flag(self):
         """
         init update enable flag for branch from config.ini
         return: None
