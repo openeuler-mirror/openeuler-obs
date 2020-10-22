@@ -35,7 +35,7 @@ class SaveInfo(object):
         with open(file_path, 'a') as f:
             csv_writer = csv.writer(f)
             csv_writer.writerow([package_name, branch_name])
-        cmd="git pull; git add %s; git commit -m 'update package info';\
+        cmd="git pull; git add %s; git commit -m 'update package info'; \
                 git push" % file_path
         os.system(cmd)
 
