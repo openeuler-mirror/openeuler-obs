@@ -42,5 +42,5 @@ class SaveInfo(object):
 
 if __name__ == "__main__":
     s  = SaveInfo()
-    s.save_package_msg("vim","master")
+    s.save_package_msg("vim", "master")
 
