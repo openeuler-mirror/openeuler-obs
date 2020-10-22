@@ -15,7 +15,7 @@ from common.parser_config import ParserConfigIni
 
 class SaveInfo(object):
     """
-    save info to file for packages which is not be updated
+    save info
     """
     def __init__(self):
         """
