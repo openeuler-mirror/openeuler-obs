@@ -30,6 +30,7 @@ class ParserConfigIni(object):
         self.config.read(config_path, encoding='utf-8')
         self._init_update_enabled_flag()
         self._init_ignored_repo()
+        self._init_package_info_file()
 
     def _init_update_enabled_flag(self):
         """
@@ -61,6 +62,18 @@ class ParserConfigIni(object):
         return: ignored repo list
         """
         return self.ignored_repos
+
+    def _init_package_info_file(self):
+        """
+        init package info file for store package which is not be updated
+        """
+        self.package_info_file = self.config.get("package_info_file", "name")
+
+    def get_package_info_file(self):
+        """
+        get file
+        """
+        return self.package_info_file
 
 
 if __name__ == "__main__":
