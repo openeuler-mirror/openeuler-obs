@@ -38,7 +38,6 @@ class ParserConfigIni(object):
         return: None
         """
         branch_list = self.config.options("update_enable")
-        print(branch_list)
         for b in branch_list:
             self.update_enabled_flag[b] = common.str_to_bool(self.config.get("update_enable", b))
 

@@ -8,6 +8,7 @@ main script for running
 """
 from common.log_obs import log
 from common.parser_config import ParserConfigIni
+from core.save import SaveInfo
 
 
 class Runner(object):
@@ -40,7 +41,8 @@ class Runner(object):
         return:
         """
         log.debug("save package info")
-        # TODO
+        si = SaveInfo()
+        si.save_package_msg(self.kwargs["repository"], self.kwargs["branch"])
 
     def _update_package(self):
         """
@@ -57,12 +59,12 @@ class Runner(object):
         """
         log.debug(self.ignore_list)
         log.debug(self.update_enabled_flag)
-        if self.kwargs["repostory"] == "obs_meta":
+        if self.kwargs["repository"] == "obs_meta":
             self._obs_meta_action()
-        elif self.kwargs["repostory"] not in self.ignore_list:
+        elif self.kwargs["repository"] not in self.ignore_list:
             if not self.update_enabled_flag[self.kwargs["branch"].lower()]:
                 log.debug("can not update branch:%s, package: %s"
-                        % (self.kwargs["branch"], self.kwargs["repostory"]))
+                        % (self.kwargs["branch"], self.kwargs["repository"]))
                 self._save_package_info()
             else:
                 self._update_package()
