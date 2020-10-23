@@ -8,6 +8,7 @@ main script for running
 """
 from common.log_obs import log
 from common.parser_config import ParserConfigIni
+from core.save import SaveInfo
 
 
 class Runner(object):
@@ -40,7 +41,8 @@ class Runner(object):
         return:
         """
         log.debug("save package info")
-        # TODO
+        si = SaveInfo()
+        si.save_package_msg(self.kwargs["repostory"], self.kwargs["branch"])
 
     def _update_package(self):
         """
