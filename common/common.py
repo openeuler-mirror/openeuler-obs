@@ -34,7 +34,7 @@ class Pexpect(object):
 
     def _expect(self, process):
         for i in range(5):
-            ret=process.expect(["(yes/no)",  "Password", "password", pexpect.EOF, \
+            ret=process.expect(["(yes/no)", "Password", "password", pexpect.EOF, \
                     pexpect.exceptions.TIMEOUT], timeout=1)
             print(ret)
             if ret == 0:
