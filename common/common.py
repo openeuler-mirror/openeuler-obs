@@ -57,10 +57,10 @@ class Pexpect(object):
         print(cmd)
         process = pexpect.spawn(cmd)
         self._expect(process)
-        res = process.readlines()
+        msg = process.readlines()
         process.close()
 
-        return res
+        return msg
 
     def scp_file(self, src_file, dest_dir):
         """
@@ -74,10 +74,10 @@ class Pexpect(object):
         print(cmd)
         process = pexpect.spawn(cmd)
         self._expect(process)
-        res = process.readlines()
+        msg = process.readlines()
         process.close()
 
-        return res
+        return msg
 
 
 if __name__ == "__main__":
