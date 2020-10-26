@@ -34,7 +34,7 @@ class Pexpect(object):
 
     def _expect(self, process):
         for i in range(5):
-            ret=process.expect(["(yes/no)",  "Password", "password", pexpect.EOF,\
+            ret=process.expect(["(yes/no)",  "Password", "password", pexpect.EOF, \
                     pexpect.exceptions.TIMEOUT], timeout=1)
             print(ret)
             if ret == 0:
@@ -70,7 +70,7 @@ class Pexpect(object):
         if self.port:
             cmd = "scp -P %s %s %s@%s:%s" % (self.port, src_file, self.user, self.ip, dest_dir)
         else:
-            cmd = "scp %s %s@%s:%s"  % (src_file, self.user, self.ip, self.dest_dir)
+            cmd = "scp %s %s@%s:%s" % (src_file, self.user, self.ip, self.dest_dir)
         print(cmd)
         process = pexpect.spawn(cmd)
         self._expect(process)
