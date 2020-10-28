@@ -9,6 +9,7 @@ main script for running
 from common.log_obs import log
 from common.parser_config import ParserConfigIni
 from core.save import SaveInfo
+from core.project_manager import OBSPrjManager
 
 
 class Runner(object):
@@ -33,7 +34,10 @@ class Runner(object):
         return:
         """
         log.debug("obs_meta change")
+        obs_pm = OBSPrjManager(self.kwargs["obs_path"])
+        obs_pm.manager_action()
         # TODO
+        # add package service
 
     def _save_package_info(self):
         """
