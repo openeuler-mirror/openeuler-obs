@@ -7,6 +7,7 @@ date: 2020-10-20 9:55
 parser config.ini
 """
 import os
+import sys
 import configparser
 from common import common
 #import common
@@ -28,17 +29,31 @@ class ParserConfigIni(object):
                 "../config/config.ini")
         self.config = configparser.ConfigParser()
         self.config.read(config_path, encoding='utf-8')
+        self._init_branch_list()
         self._init_update_enabled_flag()
         self._init_ignored_repo()
         self._init_package_info_file()
+
+    def _init_branch_list(self):
+        """
+        init branch list from config.ini
+        return: None
+        """
+        self.branch_list = self.config.options("update_enable")
+
+    def get_branch_list(self):
+        """
+        get current branch list
+        return: branch list
+        """
+        return self.branch_list
 
     def _init_update_enabled_flag(self):
         """
         init update enable flag for branch from config.ini
         return: None
         """
-        branch_list = self.config.options("update_enable")
-        for b in branch_list:
+        for b in self.branch_list:
             self.update_enabled_flag[b] = common.str_to_bool(self.config.get("update_enable", b))
 
     def get_update_enabled_flag(self):
@@ -70,12 +85,14 @@ class ParserConfigIni(object):
 
     def get_package_info_file(self):
         """
-        get file
+        get package info file which store package that not be updated
         """
         return self.package_info_file
 
 
 if __name__ == "__main__":
     p = ParserConfigIni()
-    update_enabled_flag = p.get_update_enabled_flag()
-    print(update_enabled_flag)
+    print(p.get_update_enabled_flag())
+    print(p.get_branch_list())
+    print(p.get_ignored_repo())
+    print(p.get_package_info_file())
