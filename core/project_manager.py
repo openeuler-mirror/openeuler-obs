@@ -14,13 +14,13 @@ class OBSPrjManager():
     """
     obs project manager, include create delete and backup
     """
-    def __init__(self, obs_meta_path):
+    def __init__(self, obs_meta):
         """
         init project base info
         obs_meta_path: path of obs_meta repository
         """
-        self.obs_meta_path = obs_meta_path
-        os.chdir(self.obs_meta_path)
+        self.obs_meta = obs_meta
+        os.chdir(self.obs_meta)
         self.commit_msg = []
 
     def _set_info(self):

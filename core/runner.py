@@ -36,7 +36,8 @@ class Runner(object):
         log.debug("obs_meta change")
         obs_pm = OBSPrjManager(self.kwargs["obs_path"])
         obs_pm.manager_action()
-        # TODO add package service
+        # TODO
+        # add package service
 
     def _save_package_info(self):
         """
