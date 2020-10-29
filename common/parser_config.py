@@ -9,8 +9,8 @@ parser config.ini
 import os
 import sys
 import configparser
-#from common import common
-import common
+from common import common
+#import common
 
 
 class ConfParser(configparser.ConfigParser):
