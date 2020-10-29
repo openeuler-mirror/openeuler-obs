@@ -26,11 +26,12 @@ class OBSPkgManager(object):
         patch_file_path: diff_patch file path
         kargs: dict include giteeUserName giteeUserPwd obs_meta_path
         """
+        self.kargs = kargs
         self.work_dir = "/jenkins_home/workspace/obs_meta_update/openeuler_jenkins"
-        self.obs_meta_path = os.path.join(self.work_dir, kargs["obs_meta_path"])
+        self.obs_meta_path = os.path.join(self.work_dir, self.kargs["obs_meta_path"])
         self.patch_file_path = os.path.join(self.work_dir, "diff_patch")
-        self.giteeUserName = kargs["giteeUserName"]
-        self.giteeUserPwd = kargs["giteeUserPwd"]
+        self.giteeUserName = self.kargs["giteeUserName"]
+        self.giteeUserPwd = self.kargs["giteeUserPwd"]
         self.import_list = []
 
     def _pre_env(self):
@@ -176,7 +177,7 @@ class OBSPkgManager(object):
         proj_path = os.path.join(self.obs_meta_path, branch, proj)
         service_file = os.path.join(proj_path, pkg, "_service")
         if os.system("test -f %s" % service_file) != 0:
-            log.warning("obs_meta not have %s %s %s _service file" % (branch_name, proj, pkg))
+            log.warning("obs_meta not have %s %s %s _service file" % (branch, proj, pkg))
             return -1
         os.chdir(proj_path)
         os.system("rm -rf %s" % pkg)
@@ -279,6 +280,8 @@ class OBSPkgManager(object):
         deal with some data and relation
         """
         pattern_string = ['.meta', '.prjconf', '/_service', '/_meta']
+        proj_list = os.listdir(os.path.join(self.obs_meta_path, "master"))
+        proj_list.remove("openEuler:Mainline:RISC-V")
         for pattern in pattern_string:
             data = open(self.patch_file_path, 'r')
             for line in data:
@@ -293,9 +296,7 @@ class OBSPkgManager(object):
                     tmp["pkg"] = pkg
                     tmp["new_proj"] = new_proj
                     tmp["exist_flag"] = 0
-                    prj_list = ['openEuler:Mainline', 'openEuler:Factory',
-                                'openEuler:Epol', 'openEuler:Extras', 'bringInRely']
-                    for p in prj_list:
+                    for p in proj_list:
                         cmd3 = "osc ls %s 2>&1 | grep -q -Fx %s" % (p, pkg)
                         if os.system(cmd3) == 0:
                             if p == proj:
@@ -310,8 +311,8 @@ class OBSPkgManager(object):
         """
         obs project package add, delete, modify, check
         """
-        #self._pre_env()
-        #self._git_clone("obs_meta")
+        self._pre_env()
+        self._git_clone("obs_meta")
         self._deal_some_param()
         log.info(self.import_list)
         for msg in self.import_list:
@@ -424,7 +425,7 @@ class OBSPkgManager(object):
         self._git_clone("obs_meta")
         yaml_dict, meta_bp_dict, pkg_branch_dict = self._pre_data()
         self._check_yaml_meta_pkg(yaml_dict, meta_bp_dict, pkg_branch_dict)
-    
+
 
 if __name__ == "__main__":
     kargs = {"giteeUserName":sys.argv[1], "giteeUserPwd":sys.argv[2], "obs_meta_path":sys.argv[3]}
