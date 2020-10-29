@@ -11,26 +11,35 @@ import shutil
 from common.log_obs import log
 from common.common import Pexpect
 
-work_path = "/srv/cache/obs/tar_scm/repo/next/"
-
 class SYNCCode(object):
     """
     if the rpm package has changed in gitee what you should donext
     (Synchronize the latest code to OBS)
     """
-    def __init__(self, rpm_name, gitee_branch, giteeuser, giteeuserpwd, cmd):
+    def __init__(self, kargs):
         """
-        rpm_name: The package you want sync it to obs
-        gitee_branch: The branch for you commit in gitee
-        giteeuser: The gitee account
-        giteeuserpwd: The gitee passwd
-        cmd : The object you create for ssh_cmd
+        kargs: dict, init dict by 'a': 'A' style
+        The dict key_value as the following:
+            repository: The package you want sync it to obs
+            gitee_branch: The branch for you commit in gitee
+            giteeuser: The gitee account
+            giteeuserpwd: The gitee passwd
+            meta_path: Where the obs_meta save in jenkins
+            obs_server_user: The user name for you use in server
+            obs_server_ip: The ip for you server
+            obs_server_passwd: The password for your ip
+            obs_server_port: The port for your ip
         """
-        self.rpm_name = rpm_name
-        self.gitee_branch= gitee_branch
-        self.cmd = cmd
-        self.giteeuser = giteeuser
-        self.giteeuserpwd = giteeuserpwd
+        self.kargs = kargs
+        self.repository = self.kargs['repository']
+        self.gitee_branch = self.kargs['gitee_branch']
+        self.giteeuser = self.kargs['giteeuser']
+        self.giteeuserpwd = self.kargs['giteeuserpwd']
+        self.meta_path = self.kargs['meta_path']
+        self.cmd = Pexpect(self.kargs['obs_server_user'], 
+                self.kargs['obs_server_ip'],
+                self.kargs['obs_server_passwd'],
+                self.kargs['obs_server_port'])
 
     def _git_clone(self, rpm_dir, gitee_branch, path):
         """
@@ -49,18 +58,14 @@ class SYNCCode(object):
         Get the obs project from gitee_branch
         """
         log.info("Start get the obs_project")
-        download_path = "/srv/cache/obs/tar_scm/repo/next/obs_meta"
-        self._git_clone("obs_meta", "master", download_path)
-        ss_cmd = "find %s/%s -name %s " % (download_path, self.gitee_branch,
-                self.rpm_name)
-        obs_project = str(self.cmd.ssh_cmd(ss_cmd)[1]).split('/')[9]
+        os.chdir("%s/%s" % (self.meta_path, self.gitee_branch))
+        cmd = "find ./ -name %s | awk -F '/' '{print $2}'" % self.repository
+        obs_project = os.popen(cmd).readlines()[0].replace('\n', '')
         if obs_project:
             log.info("The %s obs_project for gitee_%s is <<<<%s>>>>" % (
-                self.rpm_name, self.gitee_branch, obs_project))
-            self.cmd.ssh_cmd("rm -rf %s" % (download_path))
+                self.repository, self.gitee_branch, obs_project))
             return obs_project
         else:
-            self.cmd.ssh_cmd("rm -rf %s" % (download_path))
             sys.exit("Failed !!! The rpm is not exist in %s branch !!!"
                     % self.gitee_branch)
 
@@ -72,9 +77,9 @@ class SYNCCode(object):
             source_path = "/srv/cache/obs/tar_scm/repo/next/openEuler"
         else:
             source_path = "/srv/cache/obs/tar_scm/repo/next/" + self.gitee_branch
-        if self.rpm_name == "CreateImage":
+        if self.repository == "CreateImage":
             sys.exit("The rpm packages does not need to be sync!!!")
-        elif self.rpm_name == "kernel":
+        elif self.repository == "kernel":
             pull_result = str(self.cmd.ssh_cmd("git -C %s/kernel pull" % source_path)
                     [1].strip()).split("'")[1]
             log.info(pull_result)
@@ -88,18 +93,18 @@ class SYNCCode(object):
             self.cmd.ssh_cmd("git lfs clone --depth=1 %s -b %s %s" % (open_kernel_git, 
                 kernel_tags, open_kernel_path), 120)
         else:
-            rpm_path = source_path + '/' + self.rpm_name
-            self._git_clone(self.rpm_name, self.gitee_branch, rpm_path)
+            rpm_path = source_path + '/' + self.repository
+            self._git_clone(self.repository, self.gitee_branch, rpm_path)
 
     def _gitee_pr_to_obs(self, obs_pro):
         """
         obs_pro:The obs project that gitee branch corresponds
         """
-        osc_service = self.cmd.ssh_cmd("osc service remoterun %s %s" % (obs_pro, self.rpm_name))
+        osc_service = self.cmd.ssh_cmd("osc service remoterun %s %s" % (obs_pro, self.repository))
         for results in osc_service:
             if "ok" in str(results.strip()):
                 log.info(str(results.strip()))
-                log.info("Success for osc service remoterun the %s" % self.rpm_name)
+                log.info("Success for osc service remoterun the %s" % self.repository)
                 break
             else:
                 continue
@@ -114,7 +119,11 @@ class SYNCCode(object):
         self._gitee_pr_to_obs(obs_project)
 
 if __name__ == "__main__":
-    #Now star
-    sshcmd = Pexpect("root", "124.90.34.227", "654321", port=11243)
-    sync_run = SYNCCode(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sshcmd)
+    #Now start
+    kwargs = {'repository': sys.argv[1], 'gitee_branch': sys.argv[2], 
+            'giteeuser': sys.argv[3], 'giteeuserpwd': sys.argv[4], 
+            'meta_path': '/home/python_bash/obs_meta', 'obs_server_user': 'root',
+            'obs_server_ip': '124.90.34.227', 'obs_server_passwd': '654321',
+            'obs_server_port': '11243'}
+    sync_run = SYNCCode(kwargs)
     sync_run.sync_code_to_obs()
