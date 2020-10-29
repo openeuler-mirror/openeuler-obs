@@ -35,8 +35,7 @@ class Pexpect(object):
     def _expect(self, process):
         for i in range(5):
             ret=process.expect(["(yes/no)", "Password", "password", pexpect.EOF, \
-                    pexpect.exceptions.TIMEOUT], timeout=1)
-            print(ret)
+                    pexpect.exceptions.TIMEOUT], timeout=60)
             if ret == 0:
                 process.sendline("yes\n")
             if ret == 1 or ret == 2:
@@ -45,7 +44,7 @@ class Pexpect(object):
             if ret == 3 or ret == 4:
                 break
 
-    def ssh_cmd(self, cmd):
+    def ssh_cmd(self, cmd, timeout=30):
         """
         cmd: command will be runnd
         return: response of command
@@ -55,7 +54,7 @@ class Pexpect(object):
         else:
             cmd = "ssh %s@%s '%s'" % (self.user, self.ip, cmd)
         print(cmd)
-        process = pexpect.spawn(cmd)
+        process = pexpect.spawn(cmd, timeout=timeout)
         self._expect(process)
         msg = process.readlines()
         process.close()
