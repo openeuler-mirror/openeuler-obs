@@ -106,6 +106,7 @@ class ParserConfigIni(object):
         """
         return self.branch_proj
 
+
 if __name__ == "__main__":
     p = ParserConfigIni()
     print(p.get_update_enabled_flag())
