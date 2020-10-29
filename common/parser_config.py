@@ -13,6 +13,22 @@ from common import common
 #import common
 
 
+class ConfParser(configparser.ConfigParser):
+    """
+    rewrite optionxform function
+    """
+    def __init__(self, defaults=None):
+        """
+        init
+        """
+        configparser.ConfigParser.__init__(self, defaults=None)
+
+    def optionxform(self, optionstr):
+        """
+        delete old function lower()
+        """
+        return optionstr
+
 
 class ParserConfigIni(object):
     """
@@ -27,7 +43,8 @@ class ParserConfigIni(object):
         config_path = os.path.join(
                 os.path.split(os.path.realpath(__file__))[0],
                 "../config/config.ini")
-        self.config = configparser.ConfigParser()
+        self.config = ConfParser()
+        #self.config = configparser.ConfigParser()
         self.config.read(config_path, encoding='utf-8')
         self._init_branch_list()
         self._init_update_enabled_flag()
