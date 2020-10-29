@@ -6,12 +6,17 @@ Open build service system for openEuler community.
 #### 软件架构
 软件架构说明
 
+#### 功能列表
+| 序号   | 功能  | 详细描述  |
+|----|---|---|
+|  1  | 创建obs仓库 | 根据[obs_meta/OBS_PRJ_meta](https://gitee.com/src-openeuler/obs_meta/tree/master/OBS_PRJ_meta)目录下的meta文件创建obs空仓或obs已有仓库的备份仓库   |
+|  2  | 删除obs仓库 | [obs_meta/OBS_PRJ_meta](https://gitee.com/src-openeuler/obs_meta/tree/master/OBS_PRJ_meta)目录下的meta文件被删除，则删除对应的obs仓库  |
+|  3  | 创建obs仓库软件包  | 根据[obs_meta](https://gitee.com/src-openeuler/obs_meta)的提交记录，在obs对应仓库中创建软件包及软件包下的_service文件  |
+|  4  | 删除obs仓库软件包  | 根据[obs_meta](https://gitee.com/src-openeuler/obs_meta)的提交记录，删除obs对应仓库中的软件包  |
+|  5  | 修改obs仓库软件包的_service  | 根据[obs_meta](https://gitee.com/src-openeuler/obs_meta)的提交记录，修改obs对应仓库中创建软件包的_service文件  |
+|  6  | 软件包检查 | 根据[community/repository](https://gitee.com/openeuler/community/tree/master/repository)/目录下的src-openeuler.yam文件及[obs_meta](https://gitee.com/src-openeuler/obs_meta)对obs仓库的软件包进行检视，补充缺少的软件包、删除码云上不存在的软件包  |
+|  7  | 软件包代码更新 | 将码云软件包仓库的代码同步到obs仓库，设置同步开关(开关打开：正常同步;开关关闭：代码不同步，如需同步则后续人工同步) |
 
-#### 安装教程
-
-1.  xxxx
-2.  xxxx
-3.  xxxx
 
 #### 使用说明
 
