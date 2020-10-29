@@ -40,6 +40,7 @@ class ParserConfigIni(object):
         return: None
         """
         self.update_enabled_flag = {}
+        self.branch_proj = {}
         config_path = os.path.join(
                 os.path.split(os.path.realpath(__file__))[0],
                 "../config/config.ini")
@@ -50,6 +51,7 @@ class ParserConfigIni(object):
         self._init_update_enabled_flag()
         self._init_ignored_repo()
         self._init_package_info_file()
+        self._init_branch_proj()
 
     def _init_branch_list(self):
         """
@@ -105,6 +107,21 @@ class ParserConfigIni(object):
         get package info file which store package that not be updated
         """
         return self.package_info_file
+    
+    def _init_branch_proj(self):
+        """
+        init branch proj
+        """
+        branch_proj_list = self.config.options("branch_proj")
+        for b in branch_proj_list:
+            self.branch_proj[b] = self.config.get("branch_proj", b)
+
+    def get_branch_proj(self):
+        """
+        get branch proj data
+        return a dict
+        """
+        return self.branch_proj
 
 
 if __name__ == "__main__":
@@ -113,3 +130,4 @@ if __name__ == "__main__":
     print(p.get_branch_list())
     print(p.get_ignored_repo())
     print(p.get_package_info_file())
+    print(p.get_branch_proj())
