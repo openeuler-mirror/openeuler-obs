@@ -428,7 +428,7 @@ class OBSPkgManager(object):
 
 
 if __name__ == "__main__":
-    kargs = {"giteeUserName":sys.argv[1], "giteeUserPwd":sys.argv[2], "obs_meta_path":sys.argv[3]}
-    pm = OBSPkgManager(kargs)
+    params = {"giteeUserName":sys.argv[1], "giteeUserPwd":sys.argv[2], "obs_meta_path":sys.argv[3]}
+    pm = OBSPkgManager(params)
     pm.obs_pkg_admc()
     pm.check_obs_pkg()
