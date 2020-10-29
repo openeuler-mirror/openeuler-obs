@@ -1,5 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- encoding=utf-8 -*-
+"""
+obs project manager
+create by: miaokaibo
+time: 2020-10-29
+"""
 import re
 import os
 import sys
@@ -10,7 +15,7 @@ sys.path.append(os.path.join(current_path, ".."))
 from common.log_obs import log
 
 
-class OBSPrjManager():
+class OBSPrjManager(object):
     """
     obs project manager, include create delete and backup
     """
