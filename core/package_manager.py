@@ -8,7 +8,6 @@ date: 2020-10-26
 import os
 import re
 import sys
-import git
 import shutil
 import configparser
 current_path = os.path.join(os.path.split(os.path.realpath(__file__))[0])
@@ -20,18 +19,18 @@ class OBSPkgManager(object):
     """
     obs project package add delete modify check
     """
-    def __init__(self, kargs):
+    def __init__(self, **kwargs):
         """
         obs_meta_path: obs_meta dir path
         patch_file_path: diff_patch file path
-        kargs: dict include giteeUserName giteeUserPwd obs_meta_path
+        kwargs: dict include giteeUserName giteeUserPwd obs_meta_path
         """
-        self.kargs = kargs
+        self.kwargs = kwargs
         self.work_dir = "/jenkins_home/workspace/obs_meta_update/openeuler_jenkins"
-        self.obs_meta_path = os.path.join(self.work_dir, self.kargs["obs_meta_path"])
+        self.obs_meta_path = os.path.join(self.work_dir, self.kwargs["obs_meta_path"])
         self.patch_file_path = os.path.join(self.work_dir, "diff_patch")
-        self.giteeUserName = self.kargs["giteeUserName"]
-        self.giteeUserPwd = self.kargs["giteeUserPwd"]
+        self.giteeUserName = self.kwargs["gitee_user"]
+        self.giteeUserPwd = self.kwargs["gitee_pwd"]
         self.import_list = []
 
     def _pre_env(self):
@@ -48,11 +47,6 @@ class OBSPkgManager(object):
         git clone function
         """
         if git_house == "obs_meta":
-            if os.path.exists(self.obs_meta_path):
-                shutil.rmtree(self.obs_meta_path)
-            git_url = "https://%s:%s@gitee.com/src-openeuler/obs_meta.git" % (
-                       self.giteeUserName, self.giteeUserPwd)
-            git.Repo.clone_from(url = git_url, to_path = self.obs_meta_path)
             os.chdir(self.obs_meta_path)
             os.system("git diff --name-status HEAD~1 HEAD~0 > %s"
                         % self.patch_file_path)
@@ -62,7 +56,8 @@ class OBSPkgManager(object):
                 shutil.rmtree(community_path)
             git_url = "https://%s:%s@gitee.com/openeuler/community.git" % (
                        self.giteeUserName, self.giteeUserPwd)
-            git.Repo.clone_from(url = git_url, to_path = community_path)
+            ret = os.popen("git lfs --depth 1 clone %s" % git_url).read()
+            log.debug(ret)
         os.chdir(self.work_dir)
     
     def _add_pkg(self, proj, pkg, branch_name):
@@ -311,6 +306,8 @@ class OBSPkgManager(object):
         """
         obs project package add, delete, modify, check
         """
+        if self.kwargs["check_flag"]:
+            self._check_obs_pkg()
         self._pre_env()
         self._git_clone("obs_meta")
         self._deal_some_param()
@@ -413,7 +410,7 @@ class OBSPkgManager(object):
                         self._del_pkg(proj, pkg)
         log.info("check END")
 
-    def check_obs_pkg(self):
+    def _check_obs_pkg(self):
         """
         check the obs project and operate according to the src-openeuler.yaml file
         """
@@ -428,7 +425,6 @@ class OBSPkgManager(object):
 
 
 if __name__ == "__main__":
-    params = {"giteeUserName":sys.argv[1], "giteeUserPwd":sys.argv[2], "obs_meta_path":sys.argv[3]}
-    pm = OBSPkgManager(params)
+    kw = {"giteeUserName":sys.argv[1], "giteeUserPwd":sys.argv[2], "obs_meta_path":sys.argv[3]}
+    pm = OBSPkgManager(**kw)
     pm.obs_pkg_admc()
-    pm.check_obs_pkg()

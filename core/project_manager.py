@@ -24,6 +24,9 @@ class OBSPrjManager(object):
         init project base info
         obs_meta_path: path of obs_meta repository
         """
+        if not obs_meta:
+            log.error("can not found obs_meta")
+            exit(0)
         self.obs_meta = obs_meta
         os.chdir(self.obs_meta)
         self.commit_msg = []
