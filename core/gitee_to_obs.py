@@ -6,7 +6,6 @@ date: 2020-10-26
 """
 import sys
 import os
-import git
 import shutil
 from common.log_obs import log
 from common.common import Pexpect
@@ -16,7 +15,7 @@ class SYNCCode(object):
     if the rpm package has changed in gitee what you should donext
     (Synchronize the latest code to OBS)
     """
-    def __init__(self, kargs):
+    def __init__(self, **kwargs):
         """
         kargs: dict, init dict by 'a': 'A' style
         The dict key_value as the following:
@@ -30,16 +29,16 @@ class SYNCCode(object):
             obs_server_passwd: The password for your ip
             obs_server_port: The port for your ip
         """
-        self.kargs = kargs
-        self.repository = self.kargs['repository']
-        self.gitee_branch = self.kargs['gitee_branch']
-        self.giteeuser = self.kargs['giteeuser']
-        self.giteeuserpwd = self.kargs['giteeuserpwd']
-        self.meta_path = self.kargs['meta_path']
-        self.cmd = Pexpect(self.kargs['obs_server_user'], 
-                self.kargs['obs_server_ip'],
-                self.kargs['obs_server_passwd'],
-                self.kargs['obs_server_port'])
+        self.kwargs = kwargs
+        self.repository = self.kwargs['repository']
+        self.gitee_branch = self.kwargs['branch']
+        self.giteeuser = self.kwargs['gitee_user']
+        self.giteeuserpwd = self.kwargs['gitee_pwd']
+        self.meta_path = self.kwargs['obs_meta_path']
+        self.cmd = Pexpect(self.kwargs['source_server_user'],
+                self.kwargs['source_server_ip'],
+                self.kwargs['source_server_pwd'],
+                self.kwargs['source_server_port'])
 
     def _git_clone(self, rpm_dir, gitee_branch, path):
         """
@@ -120,10 +119,10 @@ class SYNCCode(object):
 
 if __name__ == "__main__":
     #Now start
-    kwargs = {'repository': sys.argv[1], 'gitee_branch': sys.argv[2], 
-            'giteeuser': sys.argv[3], 'giteeuserpwd': sys.argv[4], 
+    kw = {'repository': sys.argv[1], 'gitee_branch': sys.argv[2],
+            'giteeuser': sys.argv[3], 'giteeuserpwd': sys.argv[4],
             'meta_path': '/home/python_bash/obs_meta', 'obs_server_user': 'root',
             'obs_server_ip': '124.90.34.227', 'obs_server_passwd': '654321',
             'obs_server_port': '11243'}
-    sync_run = SYNCCode(kwargs)
+    sync_run = SYNCCode(**kw)
     sync_run.sync_code_to_obs()

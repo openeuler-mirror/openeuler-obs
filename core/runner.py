@@ -10,6 +10,8 @@ from common.log_obs import log
 from common.parser_config import ParserConfigIni
 from core.save import SaveInfo
 from core.project_manager import OBSPrjManager
+from core.gitee_to_obs import SYNCCode
+from core.package_manager import OBSPkgManager
 
 
 class Runner(object):
@@ -19,11 +21,10 @@ class Runner(object):
     def __init__(self, **kwargs):
         """
         init action
-        kwargs: dict, init dict by "a"="A" style
+        kwargs: dict
         return:
         """
         self.kwargs = kwargs
-        log.info(self.kwargs)
         parc = ParserConfigIni()
         self.update_enabled_flag = parc.get_update_enabled_flag()
         self.ignore_list = parc.get_ignored_repo()
@@ -34,10 +35,10 @@ class Runner(object):
         return:
         """
         log.debug("obs_meta change")
-        obs_pm = OBSPrjManager(self.kwargs["obs_path"])
-        obs_pm.manager_action()
-        # TODO
-        # add package service
+        obs_prjm = OBSPrjManager(self.kwargs["obs_meta_path"])
+        obs_prjm.manager_action()
+        obs_pkgm = OBSPkgManager(**self.kwargs)
+        obs_pkgm.obs_pkg_admc()
 
     def _save_package_info(self):
         """
@@ -54,7 +55,8 @@ class Runner(object):
         return:
         """
         log.debug("update package code")
-        # TODO
+        syc = SYNCCode(**self.kwargs)
+        syc.sync_code_to_obs()
 
     def run(self):
         """
@@ -66,7 +68,7 @@ class Runner(object):
         if self.kwargs["repository"] == "obs_meta":
             self._obs_meta_action()
         elif self.kwargs["repository"] not in self.ignore_list:
-            if not self.update_enabled_flag[self.kwargs["branch"].lower()]:
+            if not self.update_enabled_flag[self.kwargs["branch"]]:
                 log.debug("can not update branch:%s, package: %s"
                         % (self.kwargs["branch"], self.kwargs["repository"]))
                 self._save_package_info()
