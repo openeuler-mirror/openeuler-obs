@@ -98,7 +98,7 @@ class OBSPkgManager(object):
         proj_path = os.path.join(self.obs_meta_path, branch_name, proj)
         service_file = os.path.join(proj_path, pkg, "_service")
         if not os.path.exists(proj_path):
-            log.warning("obs_meta do not have %s %s" % (branch_name, proj))
+            log.warning("obs_meta do not have %s %s %s" % (branch_name, proj, pkg))
             return -1
         if os.system("test -f %s" % service_file) == 0:
             log.warning("obs_meta haved %s %s %s _service file, no need to add." % (branch_name, proj, pkg))
@@ -371,6 +371,7 @@ class OBSPkgManager(object):
         """
         p = ParserConfigIni()
         branch_proj_dict = p.get_branch_proj()
+        log.info("branch_proj_dict:%s" % branch_proj_dict)
         log.info("check BEGIN")
         log.info("check stage 1:")
         for pkg, branch in yaml_dict.items():
@@ -382,14 +383,14 @@ class OBSPkgManager(object):
                 else:
                     diff_add_br = set(branch).difference(set(pkg_branch_dict[pkg]))
                     for diff in diff_add_br:
-                        res = self._add_pkg_service(branch_proj_dict[diff.lower()].split(' ')[0], pkg, diff)
+                        res = self._add_pkg_service(branch_proj_dict[diff].split(' ')[0], pkg, diff)
                         if res == 0:
-                            self._add_pkg(branch_proj_dict[diff.lower()].split(' ')[0], pkg, diff)
+                            self._add_pkg(branch_proj_dict[diff].split(' ')[0], pkg, diff)
             else:
                 for need_add_br in yaml_dict[pkg]:
-                    res = self._add_pkg_service(branch_proj_dict[need_add_br.lower()].split(' ')[0], pkg, need_add_br)
+                    res = self._add_pkg_service(branch_proj_dict[need_add_br].split(' ')[0], pkg, need_add_br)
                     if res == 0:
-                        self._add_pkg(branch_proj_dict[need_add_br.lower()].split(' ')[0], pkg, need_add_br)
+                        self._add_pkg(branch_proj_dict[need_add_br].split(' ')[0], pkg, need_add_br)
         log.info("check stage 2:")
         for pkg, branch in pkg_branch_dict.items():
             if pkg in yaml_dict:
