@@ -13,7 +13,9 @@
 # Author: yaokai
 # Create: 2020-10-26
 # ******************************************************************************
-
+"""
+sync code from gitee to obs
+"""
 import sys
 import os
 import shutil

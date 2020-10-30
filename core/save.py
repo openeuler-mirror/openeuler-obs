@@ -13,6 +13,9 @@
 # Author: miao_kaibo
 # Create: 2020-10-22
 # ******************************************************************************
+"""
+save package info
+"""
 
 import csv
 import os
