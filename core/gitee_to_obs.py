@@ -102,7 +102,7 @@ class SYNCCode(object):
             log.info(open_kernel_git)
             self.cmd.ssh_cmd("rm -rf %s" % open_kernel_path)
             self.cmd.ssh_cmd("git lfs clone --depth=1 %s -b %s %s" % (open_kernel_git, 
-                kernel_tags, open_kernel_path), 120)
+                kernel_tags, open_kernel_path), 600)
         else:
             rpm_path = source_path + '/' + self.repository
             self._git_clone(self.repository, self.gitee_branch, rpm_path)
