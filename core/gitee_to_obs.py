@@ -105,7 +105,15 @@ class SYNCCode(object):
                 kernel_tags, open_kernel_path), 600)
         else:
             rpm_path = source_path + '/' + self.repository
-            self._git_clone(self.repository, self.gitee_branch, rpm_path)
+            ssh_cmd = "if [ -d %s ];then echo 'exist';else echo 'need to clone';fi" % rpm_path
+            repository_exist = self.cmd.ssh_cmd(ssh_cmd)
+            repository_exist = str(repository_exist[1].strip()).split("'")[1]
+            log.info(self.repository + ':' + repository_exist)
+            if repository_exist == 'exist':
+                pull_result = str(self.cmd.ssh_cmd('git -C %s pull' % rpm_path)[1].strip()).split("'")[1]
+                log.info(pull_result)
+            else:
+                self._git_clone(self.repository, self.gitee_branch, rpm_path)
 
     def _gitee_pr_to_obs(self, obs_pro):
         """
@@ -131,10 +139,10 @@ class SYNCCode(object):
 
 if __name__ == "__main__":
     #Now start
-    kw = {'repository': sys.argv[1], 'gitee_branch': sys.argv[2],
-            'giteeuser': sys.argv[3], 'giteeuserpwd': sys.argv[4],
-            'meta_path': '/home/python_bash/obs_meta', 'obs_server_user': 'root',
-            'obs_server_ip': '124.90.34.227', 'obs_server_passwd': '654321',
-            'obs_server_port': '11243'}
+    kw = {'repository': sys.argv[1], 'branch': sys.argv[2],
+            'gitee_user': sys.argv[3], 'gitee_pwd': sys.argv[4],
+            'obs_meta_path': '/home/python_bash/obs_meta', 'source_server_user': 'root',
+            'source_server_ip': '124.90.34.227', 'source_server_pwd': '654321',
+            'source_server_port': '11243'}
     sync_run = SYNCCode(**kw)
     sync_run.sync_code_to_obs()
