@@ -21,6 +21,7 @@ action for package
 import os
 import re
 import sys
+import yaml
 import shutil
 import configparser
 current_path = os.path.join(os.path.split(os.path.realpath(__file__))[0])
@@ -100,7 +101,8 @@ class OBSPkgManager(object):
             os.system("osc add %s" % pkg)
         new_file = os.popen("osc status").read()
         if len(new_file):
-            os.system("osc ci -m 'add by %s'" % self.giteeUserName)
+            os.system("osc ci -m 'add %s by %s'" % (pkg, self.giteeUserName))
+            log.info("add %s %s by %s" % (proj, pkg, self.giteeUserName))
         os.chdir(self.work_dir)
     
     def _add_pkg_service(self, proj, pkg, branch_name):
@@ -111,10 +113,11 @@ class OBSPkgManager(object):
         proj_path = os.path.join(self.obs_meta_path, branch_name, proj)
         service_file = os.path.join(proj_path, pkg, "_service")
         if not os.path.exists(proj_path):
-            log.warning("obs_meta do not have %s %s %s" % (branch_name, proj, pkg))
+            log.warning("obs_meta do not have %s %s" % (branch_name, proj))
             return -1
         if os.system("test -f %s" % service_file) == 0:
-            log.warning("obs_meta haved %s %s %s _service file, no need to add." % (branch_name, proj, pkg))
+            log.warning("obs_meta haved %s %s %s _service file, no need to add."
+                    % (branch_name, proj, pkg))
             return -1
         os.chdir(proj_path)
         if not os.path.exists(pkg):
@@ -133,7 +136,8 @@ class OBSPkgManager(object):
         f.close()
         os.chdir("%s/%s/%s" % (self.obs_meta_path, branch_name, proj))
         os.system("git add %s" % pkg)
-        os.system("git commit -m 'add %s _service file by %s'" % (pkg, self.giteeUserName))
+        os.system("git commit -m 'add _service file by %s'" % self.giteeUserName)
+        log.info("add %s %s _service file by %s" % (proj, pkg, self.giteeUserName))
         os.system("git push")
         return 0
     
@@ -151,6 +155,7 @@ class OBSPkgManager(object):
             os.chdir(proj)
             os.system("osc rm %s" % pkg)
             os.system("osc ci -m 'delete by %s'" % self.giteeUserName)
+            log.info("delete %s %s by %s" % (proj, pkg, self.giteeUserName))
         else:
             log.warning("obs %s %s not found" % (proj, pkg))
             return -1
@@ -173,7 +178,8 @@ class OBSPkgManager(object):
         os.system("osc co %s %s &>/dev/null" % (proj, pkg))
         os.chdir(pkg_path)
         os.system("test -f _service && osc rm _service")
-        os.system("osc ci -m 'delete by %s'" % self.giteeUserName)
+        os.system("osc ci -m 'delete _service by %s'" % self.giteeUserName)
+        log.info("delete obs %s %s _service by %s" % (proj, pkg, self.giteeUserName))
         os.chdir(self.work_dir)
         return 0
     
@@ -189,8 +195,8 @@ class OBSPkgManager(object):
             return -1
         os.chdir(proj_path)
         os.system("rm -rf %s" % pkg)
-        os.system("git add -A && git commit -m 'delete %s %s %s by %s'" % (
-            branch, proj, pkg, self.giteeUserName))
+        os.system("git add -A && git commit -m 'delete %s by %s'" % (pkg, self.giteeUserName))
+        log.info("delete obs_meta %s %s %s by %s" % (branch, proj, pkg, self.giteeUserName))
         os.system("git push")
         os.chdir(self.work_dir)
         return 0
@@ -246,6 +252,7 @@ class OBSPkgManager(object):
         """
         deal diff_patch line mesg
         """
+        log.info("line:%s" % line)
         new_proj = ''
         new_file_path = ''
         log_list = list(line.split())
@@ -345,19 +352,23 @@ class OBSPkgManager(object):
         """
         Preprocessing the data
         """
-        os.chdir(self.work_dir)
-        yaml_path = os.path.join(self.work_dir, "community/repository")
-        f1 = open("%s/src-openeuler.yaml" % yaml_path, 'r')
         yaml_dict = {}
         meta_bp_dict = {}
         pkg_branch_dict = {}
-        for line in f1:
-            if re.search("- name:", line):
-                pkg_name = line.split()[2]
-            if re.search("  - ", line):
-                branch = line.split()[1]
-                if branch != "openEuler1.0-base" and branch != "openEuler1.0":
-                    yaml_dict.setdefault(pkg_name, []).append(branch)
+        os.chdir(self.work_dir)
+        yaml_path = os.path.join(self.work_dir, "community/repository")
+        f1 = open("%s/src-openeuler.yaml" % yaml_path, 'r')
+        y = yaml.load(f1)
+        for tmp in y['repositories']:
+            name = tmp['name']
+            branch = tmp['protected_branches']
+            if "openEuler1.0-base" in branch:
+                branch.remove("openEuler1.0-base")
+            if "openEuler1.0" in branch:
+                branch.remove("openEuler1.0")
+            if "riscv" in branch:
+                branch.remove("riscv")
+            yaml_dict.setdefault(name, []).extend(branch)
         f1.close()
         del yaml_dict["ci_check"]
         del yaml_dict["build"]
@@ -375,6 +386,8 @@ class OBSPkgManager(object):
             meta_bp_dict.setdefault(br, []).append(proj)
             pkg_branch_dict.setdefault(name, []).append(br)
         f2.close()
+        for key, value in meta_bp_dict.items():
+            meta_bp_dict[key] = list(set(value))
         os.remove("%s/res.txt" % self.work_dir)
         return yaml_dict, meta_bp_dict, pkg_branch_dict
     
@@ -384,7 +397,6 @@ class OBSPkgManager(object):
         """
         p = ParserConfigIni()
         branch_proj_dict = p.get_branch_proj()
-        log.info("branch_proj_dict:%s" % branch_proj_dict)
         log.info("check BEGIN")
         log.info("check stage 1:")
         for pkg, branch in yaml_dict.items():
@@ -396,14 +408,22 @@ class OBSPkgManager(object):
                 else:
                     diff_add_br = set(branch).difference(set(pkg_branch_dict[pkg]))
                     for diff in diff_add_br:
-                        res = self._add_pkg_service(branch_proj_dict[diff].split(' ')[0], pkg, diff)
-                        if res == 0:
-                            self._add_pkg(branch_proj_dict[diff].split(' ')[0], pkg, diff)
+                        if diff == "master":
+                            res = self._add_pkg_service(branch_proj_dict[diff].split(' ')[0], pkg, diff)
+                            if res == 0:
+                                self._add_pkg(branch_proj_dict[diff].split(' ')[0], pkg, diff)
+                        else:
+                            log.info("%s %s %s skip add"
+                                    % (branch_proj_dict[diff].split(' ')[0], diff, pkg))
             else:
                 for need_add_br in yaml_dict[pkg]:
-                    res = self._add_pkg_service(branch_proj_dict[need_add_br].split(' ')[0], pkg, need_add_br)
-                    if res == 0:
-                        self._add_pkg(branch_proj_dict[need_add_br].split(' ')[0], pkg, need_add_br)
+                    if need_add_br == "master":
+                        res = self._add_pkg_service(branch_proj_dict[need_add_br].split(' ')[0], pkg, need_add_br)
+                        if res == 0:
+                            self._add_pkg(branch_proj_dict[need_add_br].split(' ')[0], pkg, need_add_br)
+                    else:
+                        log.info("%s %s %s skip add"
+                                % (branch_proj_dict[need_add_br].split(' ')[0], need_add_br, pkg))
         log.info("check stage 2:")
         for pkg, branch in pkg_branch_dict.items():
             if pkg in yaml_dict:
@@ -414,14 +434,20 @@ class OBSPkgManager(object):
                 else:
                     diff_del_br = set(branch).difference(set(yaml_dict[pkg]))
                     for diff in diff_del_br:
-                        for proj in meta_bp_dict[diff]:
-                            self._del_meta_pkg_service(diff, proj, pkg)
-                            self._del_pkg(proj, pkg)
+                        if diff == "master":
+                            for proj in meta_bp_dict[diff]:
+                                self._del_meta_pkg_service(diff, proj, pkg)
+                                self._del_pkg(proj, pkg)
+                        else:
+                            log.info("%s %s skip delete" % (diff, pkg))
             else:
                 for need_del_br in pkg_branch_dict[pkg]:
-                    for proj in meta_bp_dict[need_del_br]:
-                        self._del_meta_pkg_service(need_del_br, proj, pkg)
-                        self._del_pkg(proj, pkg)
+                    if need_del_br == "master":
+                        for proj in meta_bp_dict[need_del_br]:
+                            self._del_meta_pkg_service(need_del_br, proj, pkg)
+                            self._del_pkg(proj, pkg)
+                    else:
+                        log.info("%s %s skip delete" % (need_del_br, pkg))
         log.info("check END")
 
     def _check_obs_pkg(self):
@@ -433,12 +459,11 @@ class OBSPkgManager(object):
         pkg_branch_dict = {}
         self._pre_env()
         self._git_clone("community")
-        self._git_clone("obs_meta")
         yaml_dict, meta_bp_dict, pkg_branch_dict = self._pre_data()
         self._check_yaml_meta_pkg(yaml_dict, meta_bp_dict, pkg_branch_dict)
 
 
 if __name__ == "__main__":
-    kw = {"giteeUserName":sys.argv[1], "giteeUserPwd":sys.argv[2], "obs_meta_path":sys.argv[3]}
+    kw = {"gitee_user":sys.argv[1], "gitee_pwd":sys.argv[2], "obs_meta_path":sys.argv[3], "check_flag":1}
     pm = OBSPkgManager(**kw)
     pm.obs_pkg_admc()
