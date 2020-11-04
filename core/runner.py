@@ -46,10 +46,13 @@ class Runner(object):
         return:
         """
         log.debug("obs_meta change")
-        obs_prjm = OBSPrjManager(self.kwargs["obs_meta_path"])
-        obs_prjm.manager_action()
-        obs_pkgm = OBSPkgManager(**self.kwargs)
-        obs_pkgm.obs_pkg_admc()
+        if not self.kwargs["obs_meta_path"]:
+            log.error("can not find obs_meta path")
+        else:
+            obs_prjm = OBSPrjManager(self.kwargs["obs_meta_path"])
+            obs_prjm.manager_action()
+            obs_pkgm = OBSPkgManager(**self.kwargs)
+            obs_pkgm.obs_pkg_admc()
 
     def _save_package_info(self):
         """

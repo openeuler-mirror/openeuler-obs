@@ -26,7 +26,8 @@ def get_logger():
     get logger object
     return: logger object
     """
-    log_path = os.path.join(os.path.split(os.path.realpath(__file__))[0], "../log")
+    #log_path = os.path.join(os.path.split(os.path.realpath(__file__))[0], "../log")
+    log_path = "log"
     if not os.path.exists(log_path):
         os.mkdir(log_path)
     elif not os.path.isdir(log_path):

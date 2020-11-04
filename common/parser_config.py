@@ -52,9 +52,7 @@ class ParserConfigIni(object):
         """
         self.update_enabled_flag = {}
         self.branch_proj = {}
-        config_path = os.path.join(
-                os.path.split(os.path.realpath(__file__))[0],
-                "../config/config.ini")
+        config_path = "config/config.ini"
         self.config = ConfParser()
         #self.config = configparser.ConfigParser()
         self.config.read(config_path, encoding='utf-8')
