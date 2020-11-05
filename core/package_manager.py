@@ -326,6 +326,7 @@ class OBSPkgManager(object):
         """
         obs project package add, delete, modify, check
         """
+        self._copy_packages()
         if self.kwargs["check_flag"]:
             self._check_obs_pkg()
         self._pre_env()
@@ -461,6 +462,40 @@ class OBSPkgManager(object):
         self._git_clone("community")
         yaml_dict, meta_bp_dict, pkg_branch_dict = self._pre_data()
         self._check_yaml_meta_pkg(yaml_dict, meta_bp_dict, pkg_branch_dict)
+
+    def _copy_package(self, pkg, from_path, to_path):
+        """
+        copy package from from_path to to_path
+        from_path: path of package that will be copied
+        to_path: path fo package that will go
+        """
+        if self.kwargs["branch"] == "master":
+            cmd = "cp -r %s/%s %s && sed -i 's/openEuler/%s/g' %s/%s/_service" % \
+                    (from_path, pkg, to_path, self.kwargs["branch2"], to_path, pkg)
+        else:
+            cmd = "cp -r %s/%s %s && sed -i 's/%s/%s/g' %s/%s/_service" % \
+                    (from_path, pkg, to_path, self.kwargs["branch"], \
+                    self.kwargs["branch2"], to_path, pkg)
+        ret = os.popen(cmd).read()
+        log.debug(ret)
+
+    def _copy_packages(self):
+        """
+        copy some packages from obs project A to project B
+        """
+        if self.kwargs["branch2"] and self.kwargs["project2"]:
+            os.chdir(self.kwargs["obs_meta_path"])
+            from_path = os.path.join(self.kwargs["branch"], self.kwargs["project"])
+            to_path = os.path.join(self.kwargs["branch2"], self.kwargs["project2"])
+            pkgs = self.kwargs["pkglist"]
+            if not pkgs:
+                pkgs = os.listdir(from_path)
+            for pkg in pkgs:
+                self._copy_package(pkg, from_path, to_path)
+            cmd = "git add %s && git commit -m 'add pkgs to project %s' && git push" % \
+                    (to_path, self.kwargs["project2"])
+            ret = os.popen(cmd).read()
+            log.debug(ret)
 
 
 if __name__ == "__main__":
