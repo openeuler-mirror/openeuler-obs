@@ -32,8 +32,12 @@ par.add_argument("-r", "--repository",
         help="gitee repository name", required=True)
 par.add_argument("-b", "--branch", default="master",
         help="gitee repository branch name", required=False)
+par.add_argument("-b2", "--branch2", default=None,
+        help="gitee repository branch name, cp some packages to this branch", required=False)
 par.add_argument("-p", "--project", default=None,
         help="obs project name", required=False)
+par.add_argument("-p2", "--project2", default=None,
+        help="obs project name, cp some packages to this project", required=False)
 par.add_argument("-ip", "--source_server_ip", default=None,
         help="ip of obs source server machine", required=False)
 par.add_argument("-sport", "--source_server_port", default=None,
@@ -48,21 +52,26 @@ par.add_argument("-gpwd", "--gitee_pwd", default=None,
         help="password of gitee", required=False)
 par.add_argument("-c", "--check", default=False,
         help="check obs package", required=False)
-args = par.parse_args()
+par.add_argument("--pkglist", default=None, nargs='+',
+        help="packages list, connect everyone by espace", required=False)
 
+args = par.parse_args()
 #apply
 kw = {
         "obs_meta_path": args.obs,
         "repository": args.repository,
         "branch": args.branch,
+        "branch2": args.branch2,
         "project": args.project,
+        "project2": args.project2,
         "source_server_ip": args.source_server_ip,
         "source_server_port": args.source_server_port,
         "source_server_user": args.source_server_user,
         "source_server_pwd": args.source_server_pwd,
         "gitee_user": args.gitee_user,
         "gitee_pwd": args.gitee_pwd,
-        "check_flag": args.check
+        "check_flag": args.check,
+        "pkglist": args.pkglist
         }
 log.info(kw)
 run = Runner(**kw)
