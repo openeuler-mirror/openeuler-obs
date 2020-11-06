@@ -52,6 +52,7 @@ class ParserConfigIni(object):
         """
         self.update_enabled_flag = {}
         self.branch_proj = {}
+        self.repos = {}
         config_path = "config/config.ini"
         self.config = ConfParser()
         #self.config = configparser.ConfigParser()
@@ -61,6 +62,7 @@ class ParserConfigIni(object):
         self._init_ignored_repo()
         self._init_package_info_file()
         self._init_branch_proj()
+        self._init_gitee_repository()
 
     def _init_branch_list(self):
         """
@@ -132,6 +134,22 @@ class ParserConfigIni(object):
         """
         return self.branch_proj
 
+    def _init_gitee_repository(self):
+        """
+        init repos url
+        """
+        repos_list = self.config.options("gitee_repository")
+        print(repos_list)
+        for repo in repos_list:
+            self.repos[repo] = self.config.get("gitee_repository", repo)
+
+    def get_repos_dict(self):
+        """
+        get repos url
+        return: repos, type: dict
+        """
+        return self.repos
+
 
 if __name__ == "__main__":
     p = ParserConfigIni()
@@ -140,3 +158,4 @@ if __name__ == "__main__":
     print(p.get_ignored_repo())
     print(p.get_package_info_file())
     print(p.get_branch_proj())
+    print(p.get_repos_dict())
