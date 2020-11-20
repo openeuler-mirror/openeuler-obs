@@ -73,6 +73,5 @@ kw = {
         "check_flag": args.check,
         "pkglist": args.pkglist
         }
-log.info(kw)
 run = Runner(**kw)
 run.run()

@@ -17,7 +17,7 @@
 """
 function for all
 """
-
+import os
 import pexpect
 
 
@@ -26,6 +26,29 @@ def str_to_bool(s):
     change string to bool
     """
     return s.lower() in ("yes", "true", "t", "1")
+
+
+def git_repo_src(repo_url, gitee_user_name, gitee_user_pwd):
+    """
+    get repo source
+    repo_url: url of repository
+    gitee_user_name:
+    gitee_user_pwd:
+    """
+    repos_dir = os.getcwd()
+    tmp = repo_url.split("//")
+    repo_path = os.path.join(repos_dir, tmp[1].split("/")[-1].replace(".git", ""))
+    if os.path.exists(repo_path) and os.path.isdir(repo_path):
+        cmd = "cd %s && git pull" % repo_path
+    else:
+        cmd = "rm -rf %s && git clone --depth 1 %s//%s:%s@%s" % \
+                (repo_path, tmp[0], gitee_user_name, gitee_user_pwd, tmp[1])
+    if os.system(cmd) != 0:
+        return None
+    if os.path.exists(repo_path):
+        return repo_path
+    else:
+        return None
 
 
 class Pexpect(object):
@@ -92,6 +115,8 @@ class Pexpect(object):
 
 
 if __name__ == "__main__":
+    res = git_repo_src("https://gitee.com/src-openeuler/zip", "xxxxx", "xxxxx")
+    print(res)
     test = Pexpect("root", "127.0.0.1", "123456", port=2224)
     res = test.ssh_cmd("pwd")
     print(res)
