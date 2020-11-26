@@ -53,6 +53,7 @@ class ParserConfigIni(object):
         self.update_enabled_flag = {}
         self.branch_proj = {}
         self.repos = {}
+        self.obs_repos = {}
         config_path = "config/config.ini"
         self.config = ConfParser()
         #self.config = configparser.ConfigParser()
@@ -63,6 +64,8 @@ class ParserConfigIni(object):
         self._init_package_info_file()
         self._init_branch_proj()
         self._init_gitee_repository()
+        self._init_obs_repository()
+        self._init_obs_prj_root_path()
 
     def _init_branch_list(self):
         """
@@ -150,6 +153,33 @@ class ParserConfigIni(object):
         """
         return self.repos
 
+    def _init_obs_repository(self):
+        """
+        init obs repos name
+        """
+        obs_list = self.config.options("obs_project_repos")
+        for obs in obs_list:
+            self.obs_repos[obs.replace("-", ":")] = self.config.get("obs_project_repos", obs)
+
+    def get_obs_repos_dict(self):
+        """
+        get repos of obs
+        return: obs repos, type: dict
+        """
+        return self.obs_repos
+
+    def _init_obs_prj_root_path(self):
+        """
+        init obs project root path where store all packages of all obs projects
+        """
+        self.obs_prj_root_path = self.config.get("obs_project_root_path", "path")
+
+    def get_obs_prj_root_path(self):
+        """
+        get obs project root path
+        """
+        return self.obs_prj_root_path
+
 
 if __name__ == "__main__":
     p = ParserConfigIni()
@@ -159,3 +189,5 @@ if __name__ == "__main__":
     print(p.get_package_info_file())
     print(p.get_branch_proj())
     print(p.get_repos_dict())
+    print(p.get_obs_repos_dict())
+    print(p.get_obs_prj_root_path())
