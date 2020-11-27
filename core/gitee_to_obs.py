@@ -112,6 +112,11 @@ class SYNCCode(object):
             if repository_exist == 'exist':
                 pull_result = str(self.cmd.ssh_cmd('git -C %s pull' % rpm_path)[1].strip()).split("'")[1]
                 log.info(pull_result)
+                pull_result_last = str(self.cmd.ssh_cmd('git -C %s pull' % rpm_path)[1].strip()).split("'")[1]
+                if "Already" in pull_result_last:
+                    log.info(pull_result_last)
+                else:
+                    self._git_clone(self.repository, self.gitee_branch, rpm_path)
             else:
                 self._git_clone(self.repository, self.gitee_branch, rpm_path)
 
