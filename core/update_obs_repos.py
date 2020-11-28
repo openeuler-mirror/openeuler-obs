@@ -19,7 +19,6 @@ update obs repo rpms
 """
 import os
 import sys
-import rpm
 import shutil
 import time
 import yaml
