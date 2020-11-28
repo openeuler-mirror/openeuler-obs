@@ -23,7 +23,6 @@ import rpm
 import shutil
 import time
 import yaml
-import shutil
 import threadpool
 current_path = os.path.join(os.path.split(os.path.realpath(__file__))[0])
 sys.path.append(os.path.join(current_path, ".."))
@@ -33,8 +32,10 @@ from common.common import Pexpect
 from common.parser_config import ParserConfigIni
 
 
-class RPMManager():
-    #def __init__(self, obs_project, repo, arch, ip, user, pwd, gitee_user, gitee_pwd, port, pkgs=None):
+class RPMManager(object):
+    """
+    update for obs repo rpms
+    """
     def __init__(self, **kwargs):
         """
         obs_project: obs project name
@@ -60,8 +61,10 @@ class RPMManager():
                 self.kwargs["repo_server_pwd"], self.kwargs["repo_server_port"])
         log.info(self.rpms_to_repo_path)
         self.obs_pkg_rpms_files_dir = None
-        self._download_obs_pkg_rpms_file(self.obs_pkg_rpms_url, self.kwargs["gitee_user"], self.kwargs["gitee_pwd"], dest_dir = "/tmp/obs_pkg_rpms")
-        self.obs_pkg_rpms_file = os.path.join(self.obs_pkg_rpms_files_dir, "%s_%s.yaml" % (self.obs_project.replace(":","-"), self.arch))
+        self._download_obs_pkg_rpms_file(self.obs_pkg_rpms_url, self.kwargs["gitee_user"], \
+                self.kwargs["gitee_pwd"], dest_dir = "/tmp/obs_pkg_rpms")
+        self.obs_pkg_rpms_file = os.path.join(self.obs_pkg_rpms_files_dir, "%s_%s.yaml" \
+                % (self.obs_project.replace(":", "-"), self.arch))
         self.get_old_rpms_list_from_file(self.obs_pkg_rpms_file)
 
     def _set_rpms_to_repo(self):
@@ -78,10 +81,7 @@ class RPMManager():
         """
         download file by gitee repo
         """
-        try:
-            self.obs_pkg_rpms_files_dir = common.git_repo_src(url, gitee_user, gitee_pwd, dest_dir=dest_dir)
-        except Exception as e:
-            log.error(e)
+        self.obs_pkg_rpms_files_dir = common.git_repo_src(url, gitee_user, gitee_pwd, dest_dir=dest_dir)
 
     def get_old_rpms_list_from_file(self, file_path):
         """
@@ -100,15 +100,20 @@ class RPMManager():
         pkg: name of packages
         """
         try:
-            cmd = "ls %s/%s/%s/%s/%s | grep 'rpm' | grep -v 'src.rpm'" % (self.obs_project_root_path, self.obs_project, self.repo, self.arch, pkg)
+            cmd = "ls %s/%s/%s/%s/%s | grep 'rpm' | grep -v 'src.rpm'" \
+                    % (self.obs_project_root_path, self.obs_project, self.repo, self.arch, pkg)
             ret = self.pex.ssh_cmd(cmd)
             rpm_list = []
             for p in ret:
                 p = str(p, encoding = 'utf8')
                 if "rpm" in p:
                     rpm_list.append(p.replace("\r\n", ""))
-        except Exception as e:
-            log.error(r)
+        except ValueError as e:
+            log.error(e)
+        except SystemError as e:
+            log.error(e)
+        except TypeError as e:
+            log.error(e)
 
         return rpm_list
        
@@ -129,9 +134,19 @@ class RPMManager():
             log.debug(ret)
             old_rpms_list = self.old_pkg_rpms[pkg]
             for f in old_rpms_list:
-                cmd = "mv %s/%s/%s/:full/%s %s/" % (self.obs_project_root_path, self.rpms_to_repo_path, self.arch, f, pkg_bak)
+                cmd = "mv %s/%s/%s/:full/%s %s/" % (self.obs_project_root_path, \
+                        self.rpms_to_repo_path, self.arch, f, pkg_bak)
                 log.debug(cmd)
                 self.pex.ssh_cmd(cmd)
+        except ValueError as e:
+            log.error(e)
+            return False
+        except SystemError as e:
+            log.error(e)
+            return False
+        except TypeError as e:
+            log.error(e)
+            return False
         except Exception as e:
             log.error(e)
             return False
@@ -147,10 +162,17 @@ class RPMManager():
             log.debug(rpms_list)
             self.old_pkg_rpms[pkg] = rpms_list
             for r in rpms_list:
-                cmd = "cp %s/%s/%s/%s/%s/%s %s/%s/%s/:full/" % (self.obs_project_root_path, self.obs_project, self.repo, self.arch, pkg, r,  self.obs_project_root_path, self.rpms_to_repo_path, self.arch)
+                cmd = "cp %s/%s/%s/%s/%s/%s %s/%s/%s/:full/" \
+                        % (self.obs_project_root_path, self.obs_project, self.repo, \
+                        self.arch, pkg, r, self.obs_project_root_path, \
+                        self.rpms_to_repo_path, self.arch)
                 log.debug(cmd)
                 self.pex.ssh_cmd(cmd)
-        except Exception as e:
+        except ValueError as e:
+            log.error(e)
+        except SystemError as e:
+            log.error(e)
+        except TypeError as e:
             log.error(e)
 
     def update_pkg(self, pkg):
@@ -172,14 +194,20 @@ class RPMManager():
             self.pkgs = list(set(os.popen("osc list %s" % self.obs_project).read().split("\n")) - set(['']))
         pool = threadpool.ThreadPool(10)
         requests = threadpool.makeRequests(self.update_pkg, self.pkgs)
-        [pool.putRequest(req) for req in requests]
+        for req in requests:
+            pool.putRequest(req)
+#        [pool.putRequest(req) for req in requests]
         pool.wait()
         self.write_new_pkg_rpms_to_file()
 
     def write_new_pkg_rpms_to_file(self):
+        """
+        write new pkg rpms to yaml and git push for storing
+        """
         with open(self.obs_pkg_rpms_file, "w", encoding="utf-8") as f:
             yaml.dump(self.old_pkg_rpms, f)
-        cmd = "cd %s && git add %s && git commit -m 'update rpms' && git push" % (self.obs_pkg_rpms_files_dir, self.obs_pkg_rpms_file)
+        cmd = "cd %s && git add %s && git commit -m 'update rpms' && git push" \
+                % (self.obs_pkg_rpms_files_dir, self.obs_pkg_rpms_file)
         os.system(cmd)
         
 
@@ -204,7 +232,7 @@ class RPMManager():
 
                     
 if __name__ == "__main__":
-    kwargs = {
+    kw = {
             "project": "openEuler:20.03:LTS",
             "repo": "standard_x86_64",
             "arch": "x86_64",
@@ -216,5 +244,5 @@ if __name__ == "__main__":
             "gitee_pwd": "xxxxxxxxx",
             "pkglist": ["zip", "zsh"]
             }
-    t = RPMManager(**kwargs)
-    t.update_pkgs()
+    test = RPMManager(**kw)
+    test.update_pkgs()

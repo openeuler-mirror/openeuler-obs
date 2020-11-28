@@ -36,10 +36,10 @@ def git_repo_src(repo_url, gitee_user_name, gitee_user_pwd, dest_dir=None):
     gitee_user_pwd:
     """
     repos_dir = os.getcwd()
+    tmp = repo_url.split("//")
     if dest_dir:
         repo_path = dest_dir
     else:
-        tmp = repo_url.split("//")
         repo_path = os.path.join(repos_dir, tmp[1].split("/")[-1].replace(".git", ""))
     if os.path.exists(repo_path) and os.path.isdir(repo_path):
         cmd = "cd %s && git pull && cd -" % repo_path
