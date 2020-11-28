@@ -26,7 +26,7 @@ import yaml
 import threadpool
 current_path = os.path.join(os.path.split(os.path.realpath(__file__))[0])
 sys.path.append(os.path.join(current_path, ".."))
-from common import common
+from common.common import git_repo_src
 from common.log_obs import log
 from common.common import Pexpect
 from common.parser_config import ParserConfigIni
@@ -81,7 +81,7 @@ class RPMManager(object):
         """
         download file by gitee repo
         """
-        self.obs_pkg_rpms_files_dir = common.git_repo_src(url, gitee_user, gitee_pwd, dest_dir=dest_dir)
+        self.obs_pkg_rpms_files_dir = git_repo_src(url, gitee_user, gitee_pwd, dest_dir=dest_dir)
 
     def get_old_rpms_list_from_file(self, file_path):
         """
