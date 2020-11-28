@@ -60,17 +60,17 @@ par.add_argument("-up", "--repo_rpms_update", default=False,
         help="update obs repo rpms.\
         should be used with project repo arch rsip rsu rsup rsp gitee_user gitee_pwd, \
         and pkglist will be used if update some packges not all.", required=False)
-par.add_argument("-repo", "--repo", default=False,
+par.add_argument("-repo", "--repo", default=None,
         help="obs project repo name.", required=False)
-par.add_argument("-arch", "--arch", default=False,
+par.add_argument("-arch", "--arch", default=None,
         help="obs project arch name.", required=False)
-par.add_argument("-rsip", "--repo_server_ip", default=False,
+par.add_argument("-rsip", "--repo_server_ip", default=None,
         help="obs repo server machine ip.", required=False)
-par.add_argument("-rsu", "--repo_server_user", default=False,
+par.add_argument("-rsu", "--repo_server_user", default=None,
         help="obs repo server user.", required=False)
-par.add_argument("-rsup", "--repo_server_pwd", default=False,
+par.add_argument("-rsup", "--repo_server_pwd", default=None,
         help="obs repo server user password.", required=False)
-par.add_argument("-rsp", "--repo_server_port", default=False,
+par.add_argument("-rsp", "--repo_server_port", default=None,
         help="obs repo server port.", required=False)
 
 
