@@ -147,9 +147,6 @@ class RPMManager(object):
         except TypeError as e:
             log.error(e)
             return False
-        except Exception as e:
-            log.error(e)
-            return False
         return True
 
     def copy_new_rpms_to_repo(self, pkg):
@@ -180,11 +177,8 @@ class RPMManager(object):
         update one package
         pkg: name of package
         """
-        try:
-            self.backup_old_rpms_by_pkg(pkg)
-            self.copy_new_rpms_to_repo(pkg)
-        except Exception as e:
-            log.error(e)
+        self.backup_old_rpms_by_pkg(pkg)
+        self.copy_new_rpms_to_repo(pkg)
     
     def update_pkgs(self):
         """
@@ -196,7 +190,6 @@ class RPMManager(object):
         requests = threadpool.makeRequests(self.update_pkg, self.pkgs)
         for req in requests:
             pool.putRequest(req)
-#        [pool.putRequest(req) for req in requests]
         pool.wait()
         self.write_new_pkg_rpms_to_file()
 
