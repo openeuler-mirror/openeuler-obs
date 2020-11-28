@@ -192,6 +192,7 @@ class RPMManager(object):
             pool.putRequest(req)
         pool.wait()
         self.write_new_pkg_rpms_to_file()
+        self.update_repos_db()
 
     def write_new_pkg_rpms_to_file(self):
         """
@@ -202,7 +203,16 @@ class RPMManager(object):
         cmd = "cd %s && git add %s && git commit -m 'update rpms' && git push" \
                 % (self.obs_pkg_rpms_files_dir, self.obs_pkg_rpms_file)
         os.system(cmd)
-        
+
+    def update_repos_db(self):
+        """
+        update obs repos db
+        """
+        cmd = "chown -R obsrun:obsrun %s/%s/%s/:full; obs_admin --rescan-repository %s %s %s" \
+                % (self.obs_project_root_path, self.rpms_to_repo_path, self.arch, \
+                self.rpms_to_repo_path.split("/")[0], self.rpms_to_repo_path.split("/")[1], self.arch)
+        log.debug(cmd)
+        self.pex.ssh_cmd(cmd)
 
     #def get_hdr(rpm_path):
     #    ts = rpm.ts()
