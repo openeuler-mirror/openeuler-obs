@@ -28,7 +28,7 @@ def str_to_bool(s):
     return s.lower() in ("yes", "true", "t", "1")
 
 
-def git_repo_src(repo_url, gitee_user_name, gitee_user_pwd):
+def git_repo_src(repo_url, gitee_user_name, gitee_user_pwd, dest_dir=None):
     """
     get repo source
     repo_url: url of repository
@@ -37,12 +37,15 @@ def git_repo_src(repo_url, gitee_user_name, gitee_user_pwd):
     """
     repos_dir = os.getcwd()
     tmp = repo_url.split("//")
-    repo_path = os.path.join(repos_dir, tmp[1].split("/")[-1].replace(".git", ""))
-    if os.path.exists(repo_path) and os.path.isdir(repo_path):
-        cmd = "cd %s && git pull" % repo_path
+    if dest_dir:
+        repo_path = dest_dir
     else:
-        cmd = "rm -rf %s && git clone --depth 1 %s//%s:%s@%s" % \
-                (repo_path, tmp[0], gitee_user_name, gitee_user_pwd, tmp[1])
+        repo_path = os.path.join(repos_dir, tmp[1].split("/")[-1].replace(".git", ""))
+    if os.path.exists(repo_path) and os.path.isdir(repo_path):
+        cmd = "cd %s && git pull && cd -" % repo_path
+    else:
+        cmd = "rm -rf %s && git clone --depth 1 %s//%s:%s@%s %s" % \
+                (repo_path, tmp[0], gitee_user_name, gitee_user_pwd, tmp[1], repo_path)
     if os.system(cmd) != 0:
         return None
     if os.path.exists(repo_path):
@@ -88,7 +91,6 @@ class Pexpect(object):
             cmd = "ssh -p %s %s@%s '%s'" % (self.port, self.user, self.ip, cmd)
         else:
             cmd = "ssh %s@%s '%s'" % (self.user, self.ip, cmd)
-        print(cmd)
         process = pexpect.spawn(cmd, timeout=timeout)
         self._expect(process)
         msg = process.readlines()
@@ -105,7 +107,6 @@ class Pexpect(object):
             cmd = "scp -P %s %s %s@%s:%s" % (self.port, src_file, self.user, self.ip, dest_dir)
         else:
             cmd = "scp %s %s@%s:%s" % (src_file, self.user, self.ip, self.dest_dir)
-        print(cmd)
         process = pexpect.spawn(cmd)
         self._expect(process)
         msg = process.readlines()

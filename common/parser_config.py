@@ -142,7 +142,6 @@ class ParserConfigIni(object):
         init repos url
         """
         repos_list = self.config.options("gitee_repository")
-        print(repos_list)
         for repo in repos_list:
             self.repos[repo] = self.config.get("gitee_repository", repo)
 

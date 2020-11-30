@@ -23,6 +23,7 @@ from core.save import SaveInfo
 from core.project_manager import OBSPrjManager
 from core.gitee_to_obs import SYNCCode
 from core.package_manager import OBSPkgManager
+from core.update_obs_repos import RPMManager
 
 
 class Runner(object):
@@ -72,6 +73,14 @@ class Runner(object):
         syc = SYNCCode(**self.kwargs)
         syc.sync_code_to_obs()
 
+    def _update_obs_repo_rpms(self):
+        """
+        update obs repo rpms
+        """
+        log.debug("update repo rpms")
+        update_repo = RPMManager(**self.kwargs)
+        update_repo.update_pkgs()
+
     def run(self):
         """
         run main
@@ -79,7 +88,9 @@ class Runner(object):
         """
         log.debug(self.ignore_list)
         log.debug(self.update_enabled_flag)
-        if self.kwargs["repository"] == "obs_meta":
+        if self.kwargs["repo_rpms_update"]:
+            self._update_obs_repo_rpms()
+        elif self.kwargs["repository"] == "obs_meta":
             self._obs_meta_action()
         elif self.kwargs["repository"] not in self.ignore_list:
             if not self.update_enabled_flag[self.kwargs["branch"]]:
