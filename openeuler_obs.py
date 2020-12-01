@@ -73,6 +73,9 @@ par.add_argument("-rsup", "--repo_server_pwd", default=None,
 par.add_argument("-rsp", "--repo_server_port", default=None,
         help="obs repo server port.", required=False)
 
+par.add_argument("-latest", "--latest_info", default=False,
+        help="store latest package info by branch to gitee repo obs_pkg_rpms, \
+                should be with -b -guser -gpwd.", required=False)
 
 args = par.parse_args()
 #apply
@@ -99,6 +102,8 @@ kw = {
         "repo_server_user": args.repo_server_user,
         "repo_server_port": args.repo_server_port,
         "repo_server_pwd": args.repo_server_pwd,
+
+        "latest_info": args.latest_info,
         }
 
 run = Runner(**kw)
