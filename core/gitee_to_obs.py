@@ -47,6 +47,7 @@ class SYNCCode(object):
             obs_server_passwd: The password for your ip
             obs_server_port: The port for your ip
         """
+        self.timestr = time.strftime("%Y%m%d %H-%M-%S", time.localtime())
         self.kwargs = kwargs
         self.repository = self.kwargs['repository']
         self.gitee_branch = self.kwargs['branch']
@@ -65,19 +66,18 @@ class SYNCCode(object):
         """
         write date repository changed to file
         """
-        timestr = time.strftime("%Y%m%d %H-%M-%S", time.localtime())
         tmpdir = os.popen("mktemp").read().split("\n")[0]
         self.obs_pkg_prms_files_dir = git_repo_src(self.obs_pkg_rpms_url, self.giteeuser, self.giteeuserpwd, tmpdir)
         try:
             branch_path = os.path.join(self.obs_pkg_prms_files_dir, self.gitee_branch)
             if not os.path.exists(branch_path):
                 os.makedirs(branch_path)
-            cmd = "echo %s > %s/%s" % (timestr, branch_path, self.repository)
-            if os.system(cmd) != 0:
+            cmd1 = "echo %s > %s/%s" % (self.timestr, branch_path, self.repository)
+            if os.system(cmd1) != 0:
                 log.error("fail to write date of package changed to file")
-            cmd = "cd %s && git add * && git commit -m 'update date for pkg %s' && git push"\
+            cmd2 = "cd %s && git pull && git add * && git commit -m 'update date for pkg %s' && git push"\
                     % (self.obs_pkg_prms_files_dir, self.repository)
-            if os.system(cmd) != 0:
+            if os.system(cmd2) != 0:
                 log.error("fail to update file to %s")
         except AttributeError as e:
             log.error(e)
@@ -183,4 +183,4 @@ if __name__ == "__main__":
             'source_server_ip': '124.90.34.227', 'source_server_pwd': '654321',
             'source_server_port': '11243'}
     sync_run = SYNCCode(**kw)
-    sync_run.sync_code_to_obs()
+    #sync_run.sync_code_to_obs()
