@@ -5,7 +5,7 @@ Open build service system for openEuler community.
 
 #### 软件架构
 软件架构说明
-
+![输入图片说明](https://images.gitee.com/uploads/images/2020/1201/225845_f7674b15_6525505.png "Snipaste_2020-12-01_22-44-19.png")
 #### 功能列表
 | 序号   | 功能  | 详细描述  |
 |----|---|---|
