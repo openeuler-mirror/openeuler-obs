@@ -18,9 +18,15 @@ sync code from gitee to obs
 """
 import sys
 import os
+import time
 import shutil
+current_path = os.path.join(os.path.split(os.path.realpath(__file__))[0])
+sys.path.append(os.path.join(current_path, ".."))
 from common.log_obs import log
 from common.common import Pexpect
+from common.common import git_repo_src
+from common.parser_config import ParserConfigIni
+
 
 class SYNCCode(object):
     """
@@ -51,6 +57,33 @@ class SYNCCode(object):
                 self.kwargs['source_server_ip'],
                 self.kwargs['source_server_pwd'],
                 self.kwargs['source_server_port'])
+        par = ParserConfigIni()
+        self.obs_pkg_rpms_url = par.get_repos_dict()["obs_pkg_rpms"]
+        self._write_date_to_file()
+
+    def _write_date_to_file(self):
+        """
+        write date repository changed to file
+        """
+        timestr = time.strftime("%Y%m%d %H-%M-%S", time.localtime())
+        tmpdir = os.popen("mktemp").read().split("\n")[0]
+        self.obs_pkg_prms_files_dir = git_repo_src(self.obs_pkg_rpms_url, self.giteeuser, self.giteeuserpwd, tmpdir)
+        try:
+            branch_path = os.path.join(self.obs_pkg_prms_files_dir, self.gitee_branch)
+            if not os.path.exists(branch_path):
+                os.makedirs(branch_path)
+            cmd = "echo %s > %s/%s" % (timestr, branch_path, self.repository)
+            if os.system(cmd) != 0:
+                log.error("fail to write date of package changed to file")
+            cmd = "cd %s && git add * && git commit -m 'update date for pkg %s' && git push"\
+                    % (self.obs_pkg_prms_files_dir, self.repository)
+            if os.system(cmd) != 0:
+                log.error("fail to update file to %s")
+        except AttributeError as e:
+            log.error(e)
+        finally:
+            cmd = "rm -rf %s" % tmpdir
+            os.system(cmd)
 
     def _git_clone(self, rpm_dir, gitee_branch, path):
         """
