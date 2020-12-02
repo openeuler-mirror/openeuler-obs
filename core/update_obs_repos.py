@@ -146,6 +146,9 @@ class RPMManager(object):
         except TypeError as e:
             log.error(e)
             return False
+        except KeyError as e:
+            log.error(e)
+            return False
         return True
 
     def copy_new_rpms_to_repo(self, pkg):
@@ -169,6 +172,8 @@ class RPMManager(object):
         except SystemError as e:
             log.error(e)
         except TypeError as e:
+            log.error(e)
+        except KeyError as e:
             log.error(e)
 
     def update_pkg(self, pkg):
