@@ -61,7 +61,7 @@ class RPMManager(object):
         log.info(self.rpms_to_repo_path)
         self.obs_pkg_rpms_files_dir = None
         self._download_obs_pkg_rpms_file(self.obs_pkg_rpms_url, self.kwargs["gitee_user"], \
-                self.kwargs["gitee_pwd"], dest_dir = "/tmp/obs_pkg_rpms")
+                self.kwargs["gitee_pwd"])
         self.obs_pkg_rpms_file = os.path.join(self.obs_pkg_rpms_files_dir, "%s_%s.yaml" \
                 % (self.obs_project.replace(":", "-"), self.arch))
         self.get_old_rpms_list_from_file(self.obs_pkg_rpms_file)
@@ -76,11 +76,12 @@ class RPMManager(object):
                 self.rpms_to_repo_path = rpms_to_repo
                 break 
 
-    def _download_obs_pkg_rpms_file(self, url, gitee_user, gitee_pwd, dest_dir=None):
+    def _download_obs_pkg_rpms_file(self, url, gitee_user, gitee_pwd):
         """
         download file by gitee repo
         """
-        self.obs_pkg_rpms_files_dir = git_repo_src(url, gitee_user, gitee_pwd, dest_dir=dest_dir)
+        tmpdir = os.popen("mktemp").read().split("\n")[0]
+        self.obs_pkg_rpms_files_dir = git_repo_src(url, gitee_user, gitee_pwd, dest_dir=tmpdir)
 
     def get_old_rpms_list_from_file(self, file_path):
         """
@@ -204,8 +205,8 @@ class RPMManager(object):
         """
         with open(self.obs_pkg_rpms_file, "w", encoding="utf-8") as f:
             yaml.dump(self.old_pkg_rpms, f)
-        cmd = "cd %s && git add %s && git commit -m 'update rpms' && git push" \
-                % (self.obs_pkg_rpms_files_dir, self.obs_pkg_rpms_file)
+        cmd = "cd %s && git pull && git add %s && git commit -m 'update rpms' && git push && cd - && rm -rf %s" \
+                % (self.obs_pkg_rpms_files_dir, self.obs_pkg_rpms_file, self.obs_pkg_rpms_files_dir)
         os.system(cmd)
 
     def update_repos_db(self):
