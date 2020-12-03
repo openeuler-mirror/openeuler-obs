@@ -105,7 +105,7 @@ class SaveInfo(object):
             datestr_root_path = os.path.join(self.obs_pkg_rpms_files_dir, branch_name)
             if not os.path.exists(datestr_root_path):
                 os.makedirs(datestr_root_path)
-            latest_rpm_file = os.path.join(self.obs_pkg_rpms_files_dir, "latest_rpm,", "%s.csv" % branch_name)
+            latest_rpm_file = os.path.join(self.obs_pkg_rpms_files_dir, "latest_rpm", "%s.csv" % branch_name)
             with open(latest_rpm_file, "w") as f:
                 f_csv = csv.writer(f)
                 file_list = os.listdir(datestr_root_path)
