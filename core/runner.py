@@ -55,14 +55,23 @@ class Runner(object):
             obs_pkgm = OBSPkgManager(**self.kwargs)
             obs_pkgm.obs_pkg_admc()
 
-    def _save_package_info(self):
+    def _save_unsync_info(self):
         """
-        save package info for manual operation later
+        save unsync package info for manual operation later
         return:
         """
         log.debug("save package info")
-        si = SaveInfo()
-        si.save_package_msg(self.kwargs["repository"], self.kwargs["branch"])
+        si = SaveInfo(self.kwargs["gitee_user"], self.kwargs["gitee_pwd"])
+        si.save_unsync_package(self.kwargs["repository"], self.kwargs["branch"])
+
+    def _save_latest_info(self):
+        """
+        save package latest info
+        return:
+        """
+        log.debug("save latest info")
+        si = SaveInfo(self.kwargs["gitee_user"], self.kwargs["gitee_pwd"])
+        si.save_latest_info(self.kwargs["branch"])
 
     def _update_package(self):
         """
@@ -90,13 +99,15 @@ class Runner(object):
         log.debug(self.update_enabled_flag)
         if self.kwargs["repo_rpms_update"]:
             self._update_obs_repo_rpms()
+        elif self.kwargs["latest_info"]:
+            self._save_latest_info()
         elif self.kwargs["repository"] == "obs_meta":
             self._obs_meta_action()
         elif self.kwargs["repository"] not in self.ignore_list:
             if not self.update_enabled_flag[self.kwargs["branch"]]:
                 log.debug("can not update branch:%s, package: %s"
                         % (self.kwargs["branch"], self.kwargs["repository"]))
-                self._save_package_info()
+                self._save_unsync_info()
             else:
                 self._update_package()
 
