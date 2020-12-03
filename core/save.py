@@ -111,11 +111,11 @@ class SaveInfo(object):
                 file_list = os.listdir(datestr_root_path)
                 prj_list = self.branch_prj[branch_name].split(" ")
                 log.debug(prj_list)
+                var_list = []
                 for prj in prj_list:
                     cmd = "osc list %s" % prj
                     log.debug(cmd)
                     pkgs = os.popen(cmd).read().split("\n")
-                    var_list = []
                     for pkg in pkgs:
                         var_list.append(([datestr_root_path, prj, pkg, file_list, f_csv], None))
                 try:
@@ -126,11 +126,12 @@ class SaveInfo(object):
                     pool.wait()
                 except KeyboardInterrupt as e:
                     log.error(e)
-            cmd = "sort -u -r %s.csv > tmp && cat tmp > %s.csv" % (datestr_root_path, datestr_root_path)
+            cmd = "sort -u -r %s > tmp && cat tmp > %s" % (latest_rpm_file, latest_rpm_file)
             if os.system(cmd) != 0:
                 log.error("sort file fail")
-            cmd = "cd %s && git pull && git add %s.csv && git commit -m 'update file' && git push" % \
-                    (self.obs_pkg_rpms_files_dir, datestr_root_path)
+            cmd = "cd %s && git pull && git add * && git commit -m 'update file' && git push" % \
+                    self.obs_pkg_rpms_files_dir
+            log.debug(cmd)
             os.system(cmd)
         except AttributeError as e:
             log.error(e)

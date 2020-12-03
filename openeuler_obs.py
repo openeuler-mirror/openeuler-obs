@@ -59,7 +59,7 @@ par.add_argument("--pkglist", default=None, nargs='+',
         help="packages list, connect everyone by espace.", required=False)
 
 par.add_argument("-up", "--repo_rpms_update", default=False,
-        help="update obs repo rpms.\
+        help="update obs repo rpms. type bool, default False, \
         should be used with project repo arch rsip rsu rsup rsp gitee_user gitee_pwd, \
         and pkglist will be used if update some packges not all.", required=False)
 par.add_argument("-repo", "--repo", default=None,
@@ -77,7 +77,7 @@ par.add_argument("-rsp", "--repo_server_port", default=None,
 
 par.add_argument("-latest", "--latest_info", default=False,
         help="store latest package info by branch to gitee repo obs_pkg_rpms, \
-                should be with -b -guser -gpwd.", required=False)
+                type is bool, default False, should be with -b -guser -gpwd.", required=False)
 
 args = par.parse_args()
 #apply
