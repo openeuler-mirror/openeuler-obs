@@ -327,8 +327,10 @@ class OBSPkgManager(object):
         obs project package add, delete, modify, check
         """
         self._copy_packages()
-        if self.kwargs["check_flag"]:
+        if self.kwargs["check_yaml_flag"]:
             self._check_obs_pkg()
+        if self.kwargs["check_meta_flag"]:
+            self._check_obs_meta_pkg()
         self._pre_env()
         self._git_clone("obs_meta")
         self._deal_some_param()
@@ -349,13 +351,11 @@ class OBSPkgManager(object):
                 self._change_pkg_prj(msg["proj"], msg["new_proj"], msg["pkg"], msg["branch_name"])
         return 0
 
-    def _pre_data(self):
+    def _parse_yaml_data(self):
         """
         Preprocessing the data
         """
         yaml_dict = {}
-        meta_bp_dict = {}
-        pkg_branch_dict = {}
         os.chdir(self.work_dir)
         yaml_path = os.path.join(self.work_dir, "community/repository")
         f1 = open("%s/src-openeuler.yaml" % yaml_path, 'r')
@@ -373,8 +373,16 @@ class OBSPkgManager(object):
         f1.close()
         del yaml_dict["ci_check"]
         del yaml_dict["build"]
+        return yaml_dict
+    
+    def _parse_meta_data(self):
+        data_list = []
+        meta_bp_dict = {}
+        meta_pb_dict = {}
+        pkg_branch_dict = {}
+        proj_pkg_dict = {} 
         os.chdir(self.obs_meta_path)
-        cmd = "find | grep _service | grep -Ev 'OBS_PRJ_meta' | \
+        cmd = "find | grep _service | grep -Ev 'OBS_PRJ_meta|openEuler-EPOL-LTS' | \
                 awk -F '/' '{print $2,$3,$(NF-1)}' | sort | uniq > %s/res.txt" % self.work_dir
         while os.system(cmd) != 0:
             continue
@@ -385,13 +393,44 @@ class OBSPkgManager(object):
             proj = line.strip().split()[1]
             name = line.strip().split()[2]
             meta_bp_dict.setdefault(br, []).append(proj)
+            meta_pb_dict[proj] = br
             pkg_branch_dict.setdefault(name, []).append(br)
+            proj_pkg_dict.setdefault(proj, []).append(name)
         f2.close()
         for key, value in meta_bp_dict.items():
             meta_bp_dict[key] = list(set(value))
         os.remove("%s/res.txt" % self.work_dir)
-        return yaml_dict, meta_bp_dict, pkg_branch_dict
-    
+        data_list.append(meta_bp_dict)
+        data_list.append(pkg_branch_dict)
+        data_list.append(proj_pkg_dict)
+        data_list.append(meta_pb_dict)
+        return data_list
+   
+    def _check_obs_meta_pkg(self):
+        self._pre_env()
+        mylist = self._parse_meta_data()
+        proj_pkg_dict = mylist[2]
+        meta_pb_dict = mylist[3]
+        for proj, pkg in proj_pkg_dict.items():
+            log.info("proj:%s" % proj)
+            obs_pkg = os.popen("osc ls %s 2>/dev/null" % proj).read().strip()
+            obs_pkg = obs_pkg.replace('\n', ',').split(',')
+            log.info("obs pkg total:%s" % len(obs_pkg))
+            log.info("meta pkg total:%s" % len(pkg))
+            need_add = set(pkg) - set(obs_pkg)
+            log.info("need add pkg total:%s" % len(need_add))
+            log.info("need add pkgname:%s" % need_add)
+            need_del = set(obs_pkg) - set(pkg)
+            log.info("need del pkg total:%s" % len(need_del))
+            log.info("need del pkgname:%s" % need_del)
+            if len(need_add):
+                for pkgname in list(need_add):
+                    self._add_pkg(proj, pkgname, meta_pb_dict[proj])
+            if len(need_del):
+                for pkgname in list(need_del):
+                    self._del_pkg(proj, pkgname)
+            log.info("===========================")
+
     def _check_yaml_meta_pkg(self, yaml_dict, meta_bp_dict, pkg_branch_dict):
         """
         check src-openeuler.yaml file and obs_meta, then add or del branch pkg.
@@ -456,12 +495,11 @@ class OBSPkgManager(object):
         check the obs project and operate according to the src-openeuler.yaml file
         """
         yaml_dict = {}
-        meta_bp_dict = {}
-        pkg_branch_dict = {}
         self._pre_env()
         self._git_clone("community")
-        yaml_dict, meta_bp_dict, pkg_branch_dict = self._pre_data()
-        self._check_yaml_meta_pkg(yaml_dict, meta_bp_dict, pkg_branch_dict)
+        yaml_dict = self._parse_yaml_data()
+        mylist = self._parse_meta_data()
+        self._check_yaml_meta_pkg(yaml_dict, mylist[0], mylist[1])
 
     def _copy_package(self, pkg, from_path, to_path):
         """
@@ -499,6 +537,8 @@ class OBSPkgManager(object):
 
 
 if __name__ == "__main__":
-    kw = {"gitee_user":sys.argv[1], "gitee_pwd":sys.argv[2], "obs_meta_path":sys.argv[3], "check_flag":1}
+    kw = {"gitee_user":sys.argv[1], "gitee_pwd":sys.argv[2],
+            "obs_meta_path":sys.argv[3], "check_yaml_flag":0,
+            "check_meta_flag":0}
     pm = OBSPkgManager(**kw)
     pm.obs_pkg_admc()
