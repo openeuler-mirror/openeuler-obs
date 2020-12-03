@@ -131,6 +131,7 @@ class SaveInfo(object):
                 log.error("sort file fail")
             cmd = "cd %s && git pull && git add * && git commit -m 'update file' && git push" % \
                     self.obs_pkg_rpms_files_dir
+            log.debug(cmd)
             os.system(cmd)
         except AttributeError as e:
             log.error(e)
