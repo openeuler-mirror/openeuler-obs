@@ -51,8 +51,10 @@ par.add_argument("-guser", "--gitee_user", default=None,
         help="user of gitee.", required=False)
 par.add_argument("-gpwd", "--gitee_pwd", default=None,
         help="password of gitee.", required=False)
-par.add_argument("-c", "--check", default=False,
-        help="check obs package.", required=False)
+par.add_argument("-c1", "--check_yaml", default=False,
+        help="check obs package with yaml file.", required=False)
+par.add_argument("-c2", "--check_meta", default=False,
+        help="check obs package with obs_meta.", required=False)
 par.add_argument("--pkglist", default=None, nargs='+',
         help="packages list, connect everyone by espace.", required=False)
 
@@ -92,7 +94,8 @@ kw = {
         "source_server_pwd": args.source_server_pwd,
         "gitee_user": args.gitee_user,
         "gitee_pwd": args.gitee_pwd,
-        "check_flag": args.check,
+        "check_yaml": args.check_yaml,
+        "check_meta": args.check_meta,
         "pkglist": args.pkglist,
 
         "repo_rpms_update": args.repo_rpms_update,
