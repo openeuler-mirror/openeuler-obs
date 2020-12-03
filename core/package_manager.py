@@ -327,9 +327,9 @@ class OBSPkgManager(object):
         obs project package add, delete, modify, check
         """
         self._copy_packages()
-        if self.kwargs["check_yaml_flag"]:
+        if self.kwargs["check_yaml"]:
             self._check_obs_pkg()
-        if self.kwargs["check_meta_flag"]:
+        if self.kwargs["check_meta"]:
             self._check_obs_meta_pkg()
         self._pre_env()
         self._git_clone("obs_meta")
@@ -538,7 +538,7 @@ class OBSPkgManager(object):
 
 if __name__ == "__main__":
     kw = {"gitee_user":sys.argv[1], "gitee_pwd":sys.argv[2],
-            "obs_meta_path":sys.argv[3], "check_yaml_flag":0,
-            "check_meta_flag":0}
+            "obs_meta_path":sys.argv[3], "check_yaml":0,
+            "check_meta":0}
     pm = OBSPkgManager(**kw)
     pm.obs_pkg_admc()
