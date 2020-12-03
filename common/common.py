@@ -82,7 +82,7 @@ class Pexpect(object):
             if ret == 3 or ret == 4:
                 break
 
-    def ssh_cmd(self, cmd, timeout=30):
+    def ssh_cmd(self, cmd, timeout=120):
         """
         cmd: command will be runnd
         return: response of command
