@@ -62,7 +62,7 @@ class RPMManager(object):
         self.obs_pkg_rpms_files_dir = None
         self._download_obs_pkg_rpms_file(self.obs_pkg_rpms_url, self.kwargs["gitee_user"], \
                 self.kwargs["gitee_pwd"])
-        self.obs_pkg_rpms_file = os.path.join(self.obs_pkg_rpms_files_dir, "latest_rpm", \
+        self.obs_pkg_rpms_file = os.path.join(self.obs_pkg_rpms_files_dir, "repo_files", \
                 "%s_%s.yaml" % (self.obs_project.replace(":", "-"), self.arch))
         self.get_old_rpms_list_from_file(self.obs_pkg_rpms_file)
 
