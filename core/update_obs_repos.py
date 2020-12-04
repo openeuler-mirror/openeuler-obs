@@ -168,9 +168,9 @@ class RPMManager(object):
                         % (self.obs_project_root_path, self.obs_project, self.repo, \
                         self.arch, pkg, r, self.obs_project_root_path, \
                         self.rpms_to_repo_path, self.arch)
-                log.debug(cmd)
+                log.debug("%s: %s" % (pkg, cmd))
                 ret = self.pex.ssh_cmd(cmd)
-                log.debug(ret)
+                log.debug("%s: %s" % (pkg, ret))
         except ValueError as e:
             log.error(e)
         except SystemError as e:
@@ -194,7 +194,7 @@ class RPMManager(object):
         """
         if not self.pkgs:
             self.pkgs = list(set(os.popen("osc list %s" % self.obs_project).read().split("\n")) - set(['']))
-        pool = threadpool.ThreadPool(10)
+        pool = threadpool.ThreadPool(20)
         requests = threadpool.makeRequests(self.update_pkg, self.pkgs)
         for req in requests:
             pool.putRequest(req)
