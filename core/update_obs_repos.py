@@ -103,6 +103,7 @@ class RPMManager(object):
             cmd = "ls %s/%s/%s/%s/%s | grep 'rpm' | grep -v 'src.rpm'" \
                     % (self.obs_project_root_path, self.obs_project, self.repo, self.arch, pkg)
             ret = self.pex.ssh_cmd(cmd)
+            log.debug(ret)
             rpm_list = []
             for p in ret:
                 p = str(p, encoding = 'utf8')
@@ -137,7 +138,8 @@ class RPMManager(object):
                 cmd = "mv %s/%s/%s/:full/%s %s/" % (self.obs_project_root_path, \
                         self.rpms_to_repo_path, self.arch, f, pkg_bak)
                 log.debug(cmd)
-                self.pex.ssh_cmd(cmd)
+                ret = self.pex.ssh_cmd(cmd)
+                log.debug(ret)
         except ValueError as e:
             log.error(e)
             return False
@@ -167,7 +169,8 @@ class RPMManager(object):
                         self.arch, pkg, r, self.obs_project_root_path, \
                         self.rpms_to_repo_path, self.arch)
                 log.debug(cmd)
-                self.pex.ssh_cmd(cmd)
+                ret = self.pex.ssh_cmd(cmd)
+                log.debug(ret)
         except ValueError as e:
             log.error(e)
         except SystemError as e:
@@ -217,7 +220,8 @@ class RPMManager(object):
                 % (self.obs_project_root_path, self.rpms_to_repo_path, self.arch, \
                 self.rpms_to_repo_path.split("/")[0], self.rpms_to_repo_path.split("/")[1], self.arch)
         log.debug(cmd)
-        self.pex.ssh_cmd(cmd)
+        ret = self.pex.ssh_cmd(cmd)
+        log.debug(ret)
 
     #def get_hdr(rpm_path):
     #    ts = rpm.ts()
