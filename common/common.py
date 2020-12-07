@@ -82,20 +82,22 @@ class Pexpect(object):
             if ret == 3 or ret == 4:
                 break
 
-    def ssh_cmd(self, cmd, timeout=120):
+    def ssh_cmd(self, cmd, timeout=600):
         """
         cmd: command will be runnd
         return: response of command
         """
-        if self.port:
-            cmd = "ssh -p %s %s@%s '%s'" % (self.port, self.user, self.ip, cmd)
-        else:
-            cmd = "ssh %s@%s '%s'" % (self.user, self.ip, cmd)
-        process = pexpect.spawn(cmd, timeout=timeout)
-        self._expect(process)
-        msg = process.readlines()
-        process.close()
-
+        try:
+            if self.port:
+                cmd = "ssh -p %s %s@%s '%s'" % (self.port, self.user, self.ip, cmd)
+            else:
+                cmd = "ssh %s@%s '%s'" % (self.user, self.ip, cmd)
+            process = pexpect.spawn(cmd, timeout=timeout)
+            self._expect(process)
+            msg = process.readlines()
+            process.close()
+        except pexpect.exceptions.TIMEOUT as e:
+            return e
         return msg
 
     def scp_file(self, src_file, dest_dir):
@@ -118,8 +120,9 @@ class Pexpect(object):
 if __name__ == "__main__":
     res = git_repo_src("https://gitee.com/src-openeuler/zip", "xxxxx", "xxxxx")
     print(res)
-    test = Pexpect("root", "127.0.0.1", "123456", port=2224)
-    res = test.ssh_cmd("pwd")
+    test = Pexpect("root", "127.0.0.1", "112233") #, port=2224)
+    res = test.ssh_cmd("osc getbinareis openEuler:20.03:LTS:Next ceph standard_x86_64 x86_64")
+    print("..................")
     print(res)
     res = test.scp_file("./ip.txt", "~")
     print(res)
