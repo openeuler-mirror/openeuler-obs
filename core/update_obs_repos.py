@@ -124,8 +124,10 @@ class RPMManager(object):
         pkg: name of packages
         """
         try:
-            if pkg in self.old_pkg_rpms and not self.old_pkg_rpms[pkg]:
-                return None
+            if pkg in self.old_pkg_rpms.keys() and not self.old_pkg_rpms[pkg]:
+                return False
+            if pkg not in self.old_pkg_rpms.keys():
+                return False
             t = time.strftime("%Y-%m-%d-%H-%M", time.localtime())
             backup_dir =  os.path.join(self.obs_project_root_path, self.rpms_to_repo_path, "backup")
             pkg_bak = os.path.join(backup_dir, "%s-%s" % (pkg, t))
