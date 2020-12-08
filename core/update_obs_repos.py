@@ -45,7 +45,6 @@ class RPMManager(object):
         self.kwargs = kwargs
         par = ParserConfigIni()
         self.obs_project_repo_dict = par.get_obs_repos_dict()
-        print(self.obs_project_repo_dict)
         self.obs_project_root_path = par.get_obs_prj_root_path()
         self.obs_pkg_rpms_url = par.get_repos_dict()["obs_pkg_rpms"]
         self.obs_project = self.kwargs["project"]
@@ -118,16 +117,13 @@ class RPMManager(object):
 
         return rpm_list
        
-    def backup_old_rpms_by_pkg(self, pkg):
+    def backup_old_rpms_by_pkg(self, pkg, rpms_list):
         """
         backup old rpms by package name
         pkg: name of packages
+        rpms_list: all rpms of package, type is list
         """
         try:
-            if pkg in self.old_pkg_rpms.keys() and not self.old_pkg_rpms[pkg]:
-                return False
-            if pkg not in self.old_pkg_rpms.keys():
-                return False
             t = time.strftime("%Y-%m-%d-%H-%M", time.localtime())
             backup_dir =  os.path.join(self.obs_project_root_path, self.rpms_to_repo_path, "backup")
             pkg_bak = os.path.join(backup_dir, "%s-%s" % (pkg, t))
@@ -135,8 +131,7 @@ class RPMManager(object):
             log.debug(cmd)
             ret = self.pex.ssh_cmd(cmd)
             log.debug(ret)
-            old_rpms_list = self.old_pkg_rpms[pkg]
-            for f in old_rpms_list:
+            for f in rpms_list:
                 cmd = "mv %s/%s/%s/:full/%s %s/" % (self.obs_project_root_path, \
                         self.rpms_to_repo_path, self.arch, f, pkg_bak)
                 log.debug(cmd)
@@ -156,13 +151,13 @@ class RPMManager(object):
             return False
         return True
 
-    def copy_new_rpms_to_repo(self, pkg):
+    def copy_new_rpms_to_repo(self, pkg, rpms_list):
         """
         copy new rpms by package name to repo
         pkg: name of package
+        rpms_list: all rpms of package, type is list
         """
         try:
-            rpms_list = self.get_new_rpms_by_pkg(pkg)
             log.debug(rpms_list)
             self.old_pkg_rpms[pkg] = rpms_list
             for r in rpms_list:
@@ -187,8 +182,22 @@ class RPMManager(object):
         update one package
         pkg: name of package
         """
-        self.backup_old_rpms_by_pkg(pkg)
-        self.copy_new_rpms_to_repo(pkg)
+        if pkg in self.old_pkg_rpms.keys():
+            old_rpms_list = self.old_pkg_rpms[pkg]
+            old_rpms_list.sort()
+        else:
+            old_rpms_list = None
+        new_rpms_list = self.get_new_rpms_by_pkg(pkg)
+        new_rpms_list.sort()
+        if old_rpms_list != new_rpms_list:
+            try:
+                self.backup_old_rpms_by_pkg(pkg, old_rpms_list)
+            except Exception as e:
+                log.error(e)
+            finally:
+                self.copy_new_rpms_to_repo(pkg, new_rpms_list)
+        else:
+            log.debug("should do nothing")
     
     def update_pkgs(self):
         """
