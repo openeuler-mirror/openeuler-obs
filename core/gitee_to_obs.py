@@ -133,9 +133,11 @@ class SYNCCode(object):
             open_kernel_path = "%s/openEuler-kernel/kernel" % source_path
             open_kernel_git = "https://%s:%s@gitee.com/openeuler/kernel" % (self.giteeuser, self.giteeuserpwd)
             log.info(open_kernel_git)
-            self.cmd.ssh_cmd("rm -rf %s" % open_kernel_path)
-            self.cmd.ssh_cmd("git lfs clone --depth=1 %s -b %s %s" % (open_kernel_git, 
+            ssh_rm_result = self.cmd.ssh_cmd("rm -rf %s" % open_kernel_path)
+            log.info(ssh_rm_result)
+            ssh_clone_result = self.cmd.ssh_cmd("git lfs clone --depth=1 %s -b %s %s" % (open_kernel_git,
                 kernel_tags, open_kernel_path), 600)
+            log.info(ssh_clone_result)
         else:
             rpm_path = source_path + '/' + self.repository
             ssh_cmd = "if [ -d %s ];then echo 'exist';else echo 'need to clone';fi" % rpm_path
