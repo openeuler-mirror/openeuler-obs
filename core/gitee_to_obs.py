@@ -94,8 +94,13 @@ class SYNCCode(object):
         self.cmd.ssh_cmd("rm -rf %s " % (path))
         repo_url = "https://%s:%s@gitee.com/src-openEuler/%s" % (self.giteeuser, self.giteeuserpwd, rpm_dir)
         clone_result = self.cmd.ssh_cmd("git lfs clone --depth=1 %s -b %s %s"
-                % (repo_url, gitee_branch, path), 60)
-        log.info("At now %s the branch is in %s" % (rpm_dir, gitee_branch))
+                % (repo_url, gitee_branch, path), 600)
+        pull_result_last = str(self.cmd.ssh_cmd('git -C %s pull' % path)[1].strip()).split("'")[1]
+        if "Already" in pull_result_last:
+            log.info(pull_result_last)
+            log.info("At now %s the branch is in %s" % (rpm_dir, gitee_branch))
+        else:
+            raise SystemExit('Git clone error')
 
     def _get_obs_project(self):
         """
@@ -137,7 +142,12 @@ class SYNCCode(object):
             log.info(ssh_rm_result)
             ssh_clone_result = self.cmd.ssh_cmd("git lfs clone --depth=1 %s -b %s %s" % (open_kernel_git,
                 kernel_tags, open_kernel_path), 600)
-            log.info(ssh_clone_result)
+            pull_result_last = str(self.cmd.ssh_cmd('git -C %s pull' % open_kernel_path)[1].strip()).split("'")[1]
+            if "Already" in pull_result_last:
+                log.info(pull_result_last)
+                log.info("kernel clone success")
+            else:
+                raise SystemExit('Git clone error')
         else:
             rpm_path = source_path + '/' + self.repository
             ssh_cmd = "if [ -d %s ];then echo 'exist';else echo 'need to clone';fi" % rpm_path
