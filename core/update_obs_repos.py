@@ -157,25 +157,16 @@ class RPMManager(object):
         pkg: name of package
         rpms_list: all rpms of package, type is list
         """
-        try:
-            log.debug(rpms_list)
-            self.old_pkg_rpms[pkg] = rpms_list
-            for r in rpms_list:
-                cmd = "cp %s/%s/%s/%s/%s/%s %s/%s/%s/:full/" \
-                        % (self.obs_project_root_path, self.obs_project, self.repo, \
-                        self.arch, pkg, r, self.obs_project_root_path, \
-                        self.rpms_to_repo_path, self.arch)
-                log.debug("%s: %s" % (pkg, cmd))
-                ret = self.pex.ssh_cmd(cmd)
-                log.debug("%s: %s" % (pkg, ret))
-        except ValueError as e:
-            log.error(e)
-        except SystemError as e:
-            log.error(e)
-        except TypeError as e:
-            log.error(e)
-        except KeyError as e:
-            log.error(e)
+        log.debug(rpms_list)
+        for r in rpms_list:
+            cmd = "cp %s/%s/%s/%s/%s/%s %s/%s/%s/:full/" \
+                    % (self.obs_project_root_path, self.obs_project, self.repo, \
+                    self.arch, pkg, r, self.obs_project_root_path, \
+                    self.rpms_to_repo_path, self.arch)
+            log.debug("%s: %s" % (pkg, cmd))
+            ret = self.pex.ssh_cmd(cmd)
+            log.debug("%s: %s" % (pkg, ret))
+        self.old_pkg_rpms[pkg] = rpms_list
 
     def update_pkg(self, pkg):
         """
@@ -191,11 +182,10 @@ class RPMManager(object):
         new_rpms_list.sort()
         if old_rpms_list != new_rpms_list:
             try:
+                self.copy_new_rpms_to_repo(pkg, new_rpms_list)
                 self.backup_old_rpms_by_pkg(pkg, old_rpms_list)
             except Exception as e:
                 log.error(e)
-            finally:
-                self.copy_new_rpms_to_repo(pkg, new_rpms_list)
         else:
             log.debug("should do nothing")
     
