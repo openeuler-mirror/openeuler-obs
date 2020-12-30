@@ -180,7 +180,7 @@ class RPMManager(object):
             old_rpms_list = None
         new_rpms_list = self.get_new_rpms_by_pkg(pkg)
         new_rpms_list.sort()
-        if old_rpms_list != new_rpms_list:
+        if old_rpms_list != new_rpms_list and new_rpms_list:
             try:
                 self.copy_new_rpms_to_repo(pkg, new_rpms_list)
                 self.backup_old_rpms_by_pkg(pkg, old_rpms_list)
