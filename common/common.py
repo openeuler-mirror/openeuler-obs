@@ -41,13 +41,14 @@ def git_repo_src(repo_url, gitee_user_name, gitee_user_pwd, dest_dir=None):
         repo_path = dest_dir
     else:
         repo_path = os.path.join(repos_dir, tmp[1].split("/")[-1].replace(".git", ""))
-    if os.path.exists(repo_path) and os.path.isdir(repo_path):
-        cmd = "cd %s && git pull && cd -" % repo_path
-    else:
-        cmd = "rm -rf %s && git clone --depth 1 %s//%s:%s@%s %s" % \
-                (repo_path, tmp[0], gitee_user_name, gitee_user_pwd, tmp[1], repo_path)
-    if os.system(cmd) != 0:
-        return None
+    for i in range(5):
+        if os.path.exists(repo_path) and os.path.isdir(repo_path):
+            cmd = "cd %s && git pull && cd -" % repo_path
+        else:
+            cmd = "rm -rf %s && git clone --depth 1 %s//%s:%s@%s %s" % \
+                    (repo_path, tmp[0], gitee_user_name, gitee_user_pwd, tmp[1], repo_path)
+        if os.system(cmd) == 0:
+            break
     if os.path.exists(repo_path):
         return repo_path
     else:
