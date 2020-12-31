@@ -168,6 +168,23 @@ class RPMManager(object):
             log.debug("%s: %s" % (pkg, ret))
         self.old_pkg_rpms[pkg] = rpms_list
 
+    def rpms_exists(self, rpms_list):
+        """
+        check rpms exists
+        rpms_list:
+        """
+        try:
+            for r in rpms_list:
+                cmd = "find %s/%s/%s/:full/ -iname '%s'" % (
+                        self.obs_project_root_path, self.rpms_to_repo_path, self.arch, r)
+                ret = self.pex.ssh_cmd(cmd)
+                if r not in str(ret):
+                    return False
+        except Exception as e:
+            log.error(e)
+            return False
+        return True
+
     def update_pkg(self, pkg):
         """
         update one package
@@ -186,6 +203,8 @@ class RPMManager(object):
                 self.backup_old_rpms_by_pkg(pkg, old_rpms_list)
             except Exception as e:
                 log.error(e)
+        elif not self.rpms_exists(new_rpms_list):
+            self.copy_new_rpms_to_repo(pkg, new_rpms_list)
         else:
             log.debug("should do nothing")
     
