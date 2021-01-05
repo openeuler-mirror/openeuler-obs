@@ -109,8 +109,15 @@ class SYNCCode(object):
         log.info("Start get the obs_project")
         os.chdir("%s/%s" % (self.meta_path, self.gitee_branch))
         cmd = "find ./ -name %s | awk -F '/' '{print $2}'" % self.repository
-        obs_project = os.popen(cmd).readlines()[0].replace('\n', '')
-        if obs_project:
+        all_project = os.popen(cmd).readlines()
+        print(all_project)
+        for project in all_project:
+            obs_project = project.replace('\n', '')
+            if ":Bak" in obs_project:
+                continue
+            else:
+                break
+        if obs_project and ":Bak" not in obs_project:
             log.info("The %s obs_project for gitee_%s is <<<<%s>>>>" % (
                 self.repository, self.gitee_branch, obs_project))
             return obs_project
