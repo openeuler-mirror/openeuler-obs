@@ -202,11 +202,13 @@ class RPMManager(object):
                 self.copy_new_rpms_to_repo(pkg, new_rpms_list)
                 self.backup_old_rpms_by_pkg(pkg, old_rpms_list)
             except Exception as e:
-                log.error(e)
-        elif not self.rpms_exists(new_rpms_list):
+                self.backup_old_rpms_by_pkg(pkg, new_rpms_list)
+        else:
+            log.debug("%s all rpms are latest should do nothing" % pkg)
+        if not self.rpms_exists(new_rpms_list):
             self.copy_new_rpms_to_repo(pkg, new_rpms_list)
         else:
-            log.debug("should do nothing")
+            log.debug("%s all rpms exists, should do nothing" % pkg)
     
     def update_pkgs(self):
         """
@@ -214,7 +216,7 @@ class RPMManager(object):
         """
         if not self.pkgs:
             self.pkgs = list(set(os.popen("osc list %s" % self.obs_project).read().split("\n")) - set(['']))
-        pool = threadpool.ThreadPool(20)
+        pool = threadpool.ThreadPool(10)
         requests = threadpool.makeRequests(self.update_pkg, self.pkgs)
         for req in requests:
             pool.putRequest(req)
