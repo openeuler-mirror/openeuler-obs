@@ -22,6 +22,7 @@ from common.parser_config import ParserConfigIni
 from core.save import SaveInfo
 from core.project_manager import OBSPrjManager
 from core.gitee_to_obs import SYNCCode
+from core.gitee_to_obs import CheckCode
 from core.package_manager import OBSPkgManager
 from core.update_obs_repos import RPMManager
 
@@ -90,14 +91,22 @@ class Runner(object):
         update_repo = RPMManager(**self.kwargs)
         update_repo.update_pkgs()
 
+    def _check_codes(self):
+        """
+        check codes between gitee and obs
+        """
+        log.debug("check codes")
+        check_codes = CheckCode(**self.kwargs)
+        check_codes.check_all()
+
     def run(self):
         """
         run main
         return:
         """
-        log.debug(self.ignore_list)
-        log.debug(self.update_enabled_flag)
-        if self.kwargs["repo_rpms_update"]:
+        if self.kwargs["check_codes"]:
+            self._check_codes()
+        elif self.kwargs["repo_rpms_update"]:
             self._update_obs_repo_rpms()
         elif self.kwargs["latest_info"]:
             self._save_latest_info()
