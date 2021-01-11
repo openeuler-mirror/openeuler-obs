@@ -79,6 +79,8 @@ par.add_argument("-latest", "--latest_info", default=False,
         help="store latest package info by branch to gitee repo obs_pkg_rpms, \
                 type is bool, default False, should be with -b -guser -gpwd.", required=False)
 
+par.add_argument("-cc", "--check_codes", default=False,
+        help="check codes same or not between gitee and obs,should be with -b and -p", required=False)
 args = par.parse_args()
 #apply
 kw = {
@@ -107,6 +109,7 @@ kw = {
         "repo_server_pwd": args.repo_server_pwd,
 
         "latest_info": args.latest_info,
+        "check_codes": args.check_codes,
         }
 
 run = Runner(**kw)

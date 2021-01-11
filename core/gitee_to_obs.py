@@ -16,10 +16,14 @@
 """
 sync code from gitee to obs
 """
+import re
 import sys
 import os
 import time
 import shutil
+import json
+import requests
+import threadpool
 current_path = os.path.join(os.path.split(os.path.realpath(__file__))[0])
 sys.path.append(os.path.join(current_path, ".."))
 from common.log_obs import log
@@ -193,6 +197,127 @@ class SYNCCode(object):
         obs_project = self._get_obs_project()
         self._get_latest_gitee_pull()
         self._gitee_pr_to_obs(obs_project)
+
+
+class CheckCode(object):
+    """
+    Make sure that the codes for gitee and obs are the same
+    """
+    def __init__(self, **kwargs):
+        self.project = kwargs["project"]
+        self.branch = kwargs["branch"]
+        cmd = "osc list %s" % self.project
+        self.packages = set(os.popen(cmd).read().split("\n")) - set([''])
+        self.not_same_packages = []
+
+    def get_gitee_spec(self, branch, package):
+        """
+        get spec file from gitee repo
+        branch: branch of package in gitee
+        package: name of package
+        """
+        log.info("--------------------------------------")
+        cmd = "curl https://gitee.com/src-openeuler/{0}/tree/{1} | grep src-openeuler > {2}".format(\
+            package, branch, package)
+        log.info("%s - %s" % (package, cmd))
+        spec_files = None
+        if os.system(cmd) == 0:
+            try:
+                cmd = "cat {0}| grep spec".format(package)
+                data = os.popen(cmd).read()
+                str_find = '<a href="/src-openeuler/.*" title=.*>(.*.spec)</a>'
+                spec_files = re.findall(str_find, data)
+                log.info("%s - %s" % (package, spec_files))
+            except SyntaxError as e:
+                log.error(e)
+        cmd = "rm -rf %s" % package
+        os.system(cmd)
+        if spec_files:
+            spec_file = spec_files[0]
+            cmd = "wget https://gitee.com/src-openeuler/{0}/raw/{1}/{2} -O gitee_{3}".format(\
+                package, branch, spec_file, spec_file)
+            log.info("%s - %s" % (package, cmd))
+            if os.system(cmd) != 0:
+                os.system(cmd)
+            return "gitee_" + spec_file
+        return None 
+       # url = "https://gitee.com/api/v5/repos/src-openeuler/{0}/contents/%2F?ref={1}".format(package, branch)
+       # ret = requests.get(url)
+       # data = json.dumps(ret.json(), sort_keys=True, indent=4, ensure_ascii=False)
+       # str_find = '"download_url": "(.*.spec)",'
+       # url = re.findall(str_find, data)[0]
+       # spec_file = os.path.basename(url)
+       # cmd = "wget %s" % url
+       # if os.system(cmd) != 0:
+       #     os.system(cmd)
+       # return spec_file
+
+    def get_obs_spec(self, project, package):
+        """
+        get spec file from obs repo
+        project:
+        package:
+        """
+        cmd = "osc ls -e %s %s | grep '.spec'" % (project, package)
+        data = os.popen(cmd).read()
+        str_find = '(.*.spec)'
+        spec_files = re.findall(str_find, data)
+        log.info("%s - obs spec files: %s" % (package, spec_files))
+        if spec_files:
+            for spec in spec_files:
+                if spec.endswith(".spec"):
+                    spec_file = spec
+            cmd = "osc co %s %s %s" % (project, package, spec_file)
+            log.info("%s - %s" % (package, cmd))
+            os.system(cmd)
+            return spec_file
+        return None
+
+    def same_or_not(self, gitee_spec, obs_spec):
+        """
+        check spec file between gitee spec file and obs spec file
+        return: False - not same; True - same
+        """
+        if gitee_spec and obs_spec:
+            log.info("gitee spec:%s, obs spec:%s" % (gitee_spec, obs_spec))
+            cmd = "diff %s %s" % (gitee_spec, obs_spec)
+            ret = os.popen(cmd).read()
+            cmd = "rm -rf %s %s" % (gitee_spec, obs_spec)
+            os.system(cmd)
+            if ret:
+                return False
+            else:
+                return True
+        elif not gitee_spec:
+            log.info("SPEC: can't not find package spec file from gitee")
+            return True
+        else:
+            return False
+
+    def check(self, package):
+        """
+        check one package
+        """
+        gitee_spec = self.get_gitee_spec(self.branch, package)
+        obs_spec = self.get_obs_spec(self.project, package)
+        if self.same_or_not(gitee_spec, obs_spec):
+            log.info("codes of %s are same between gitee and obs" % package)
+        else:
+            self.not_same_packages.append(package)
+            log.info("codes of %s are not same between gitee and obs" % package)
+
+    def check_all(self):
+        """
+        check all packages
+        """
+        if self.packages:
+            pool = threadpool.ThreadPool(10)
+            reqs = threadpool.makeRequests(self.check, self.packages)
+            for req in reqs:
+                pool.putRequest(req)
+            pool.wait()
+            log.info("codes not same between gitee and obs:%s" % self.not_same_packages)
+
 
 if __name__ == "__main__":
     #Now start
