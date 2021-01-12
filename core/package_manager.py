@@ -392,6 +392,8 @@ class OBSPkgManager(object):
             br = line.strip().split()[0]
             proj = line.strip().split()[1]
             name = line.strip().split()[2]
+            if proj.endswith(":Bak"):
+                continue
             meta_bp_dict.setdefault(br, []).append(proj)
             meta_pb_dict[proj] = br
             pkg_branch_dict.setdefault(name, []).append(br)
