@@ -205,10 +205,16 @@ class RPMManager(object):
                 self.backup_old_rpms_by_pkg(pkg, new_rpms_list)
         else:
             log.debug("%s all rpms are latest should do nothing" % pkg)
-        if not self.rpms_exists(new_rpms_list):
-            self.copy_new_rpms_to_repo(pkg, new_rpms_list)
-        else:
-            log.debug("%s all rpms exists, should do nothing" % pkg)
+        for i in range(5):
+            try:
+                if not self.rpms_exists(new_rpms_list):
+                    log.debug("check %s rpms not exists, shoud copy again" % pkg)
+                    self.copy_new_rpms_to_repo(pkg, new_rpms_list)
+                else:
+                    log.debug("check %s all rpms exists" % pkg)
+                    break
+            except Exception as e:
+                log.error(e)
     
     def update_pkgs(self):
         """
