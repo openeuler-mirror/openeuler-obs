@@ -58,6 +58,8 @@ class SYNCCode(object):
         self.giteeuser = self.kwargs['gitee_user']
         self.giteeuserpwd = self.kwargs['gitee_pwd']
         self.meta_path = self.kwargs['obs_meta_path']
+        self.pkgs = self.kwargs['pkglist']
+        self.project = self.kwargs['project']
         self.cmd = Pexpect(self.kwargs['source_server_user'],
                 self.kwargs['source_server_ip'],
                 self.kwargs['source_server_pwd'],
@@ -111,10 +113,11 @@ class SYNCCode(object):
         Get the obs project from gitee_branch
         """
         log.info("Start get the obs_project")
-        os.chdir("%s/%s" % (self.meta_path, self.gitee_branch))
-        cmd = "find ./ -name %s | awk -F '/' '{print $2}'" % self.repository
+        path = self.meta_path + '/' + self.gitee_branch
+        log.info(path)
+        cmd = "find %s -name %s | awk -F '/' '{print $4}'" % (path, self.repository)
         all_project = os.popen(cmd).readlines()
-        print(all_project)
+        log.info(all_project)
         for project in all_project:
             obs_project = project.replace('\n', '')
             if ":Bak" in obs_project:
@@ -190,14 +193,40 @@ class SYNCCode(object):
                 continue
             sys.exit("Failed !!! fail to service remoterun !!!")
 
-    def sync_code_to_obs(self):
+    def _pre_sync_code(self):
         """
-        The only way to offer that make all fuction runing
+        The way to offer that make all fuction runing
         """
         obs_project = self._get_obs_project()
         self._get_latest_gitee_pull()
         self._gitee_pr_to_obs(obs_project)
 
+    def sync_code_to_obs(self):
+        """
+        The only way to offer that make all fuction runing
+        """
+        if not self.pkgs:
+            if self.repository and not self.project:
+                self._pre_sync_code()
+            if not self.repository and self.project:
+                cmd = "osc ls %s" % self.project
+                pkgs = os.popen(cmd).readlines()
+                log.info(pkgs)
+                for pkg in pkgs:
+                    log.info(pkg.replace('\n', ''))
+                    self.repository = pkg.replace('\n', '')
+                    if self.repository:
+                        self._get_latest_gitee_pull()
+                        self._gitee_pr_to_obs(self.project)
+            else:
+                raise SystemExit('please check you arguments')
+        else:
+            for pkg in self.pkgs:
+                self.repository = pkg
+                log.info(pkg.replace('\n', ''))
+                self.repository = pkg.replace('\n', '')
+                if self.repository:
+                    self._pre_sync_code()
 
 class CheckCode(object):
     """
