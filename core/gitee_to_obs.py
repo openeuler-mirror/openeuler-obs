@@ -221,7 +221,12 @@ class CheckCode(object):
             package, branch, package)
         log.info("%s - %s" % (package, cmd))
         spec_files = None
-        if os.system(cmd) == 0:
+        ret = os.system(cmd)
+        for i in range(3):
+            if ret == 0:
+                break
+            ret = os.system(cmd)
+        if ret == 0:
             try:
                 cmd = "cat {0}| grep spec".format(package)
                 data = os.popen(cmd).read()
