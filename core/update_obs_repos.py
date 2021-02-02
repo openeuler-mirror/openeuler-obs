@@ -237,8 +237,10 @@ class RPMManager(object):
         with open(self.obs_pkg_rpms_file, "w", encoding="utf-8") as f:
             yaml.dump(self.old_pkg_rpms, f)
         for i in range(5):
-            cmd = "cd %s && git pull && git add %s && git commit -m 'update rpms' && git push && cd - && rm -rf %s" \
-                    % (self.obs_pkg_rpms_files_dir, self.obs_pkg_rpms_file, self.obs_pkg_rpms_files_dir)
+            cmd = "cd %s && git pull && git add %s && git commit -m 'update rpms in file %s' \
+                    && git push && cd - && rm -rf %s" \
+                    % (self.obs_pkg_rpms_files_dir, self.obs_pkg_rpms_file, \
+                    self.obs_pkg_rpms_file, self.obs_pkg_rpms_files_dir)
             if os.system(cmd) == 0:
                 break
 
