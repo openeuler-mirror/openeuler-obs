@@ -98,12 +98,12 @@ class RPMManager(object):
         get new rpms by package name
         pkg: name of packages
         """
+        rpm_list = []
         try:
             cmd = "ls %s/%s/%s/%s/%s | grep 'rpm' | grep -v 'src.rpm'" \
                     % (self.obs_project_root_path, self.obs_project, self.repo, self.arch, pkg)
             ret = self.pex.ssh_cmd(cmd)
             log.debug(ret)
-            rpm_list = []
             for p in ret:
                 p = str(p, encoding = 'utf8')
                 if "rpm" in p:
@@ -205,16 +205,23 @@ class RPMManager(object):
                 self.backup_old_rpms_by_pkg(pkg, new_rpms_list)
         else:
             log.debug("%s all rpms are latest should do nothing" % pkg)
-        for i in range(5):
-            try:
-                if not self.rpms_exists(new_rpms_list):
-                    log.debug("check %s rpms not exists, shoud copy again" % pkg)
-                    self.copy_new_rpms_to_repo(pkg, new_rpms_list)
-                else:
-                    log.debug("check %s all rpms exists" % pkg)
-                    break
-            except Exception as e:
-                log.error(e)
+        if new_rpms_list:
+            for i in range(5):
+                try:
+                    if not self.rpms_exists(new_rpms_list):
+                        log.debug("check %s rpms not exists, shoud copy again" % pkg)
+                        self.copy_new_rpms_to_repo(pkg, new_rpms_list)
+                    else:
+                        log.debug("check %s all rpms exists" % pkg)
+                        break
+                except Exception as e:
+                    log.error(e)
+        else:
+            cmd = "osc list %s | grep ^%s" % (self.obs_project, pkg)
+            ret = os.popen(cmd).read().split("\n")
+            if pkg not in ret:
+                self.backup_old_rpms_by_pkg(pkg, old_rpms_list)
+                self.old_pkg_rpms[pkg] = new_rpms_list
     
     def update_pkgs(self):
         """
