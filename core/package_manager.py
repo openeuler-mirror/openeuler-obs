@@ -138,7 +138,9 @@ class OBSPkgManager(object):
         os.system("git add %s" % pkg)
         os.system("git commit -m 'add _service file by %s'" % self.giteeUserName)
         log.info("add %s %s _service file by %s" % (proj, pkg, self.giteeUserName))
-        os.system("git push")
+        for i in range(5):
+            if os.system("git push") == 0:
+                break
         return 0
     
     def _del_pkg(self, proj, pkg):
@@ -197,7 +199,9 @@ class OBSPkgManager(object):
         os.system("rm -rf %s" % pkg)
         os.system("git add -A && git commit -m 'delete %s by %s'" % (pkg, self.giteeUserName))
         log.info("delete obs_meta %s %s %s by %s" % (branch, proj, pkg, self.giteeUserName))
-        os.system("git push")
+        for i in range(5):
+            if os.system("git push") == 0:
+                break
         os.chdir(self.work_dir)
         return 0
     

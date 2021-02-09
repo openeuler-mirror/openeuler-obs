@@ -101,7 +101,9 @@ class OBSPrjManager(object):
             cmd = "git add %s && \
                     git commit -m 'add new obs project by meta file' && \
                     git push" % obs_prj_dir
-            os.system(cmd)
+            for i in range(5):
+                if os.system(cmd) == 0:
+                    break
     
     def _change_meta(self, name, meta_file):
         """
@@ -123,7 +125,9 @@ class OBSPrjManager(object):
         os.system(cmd)
         cmd = "git rm -r %s && git commit -m 'delete project %s' && \
                 git push" % (os.path.join(branch, name), name)
-        os.system(cmd)
+        for i in range(5):
+            if os.system(cmd) == 0:
+                break
 
     def _rename(self, branch, old_name, new_name, new_meta):
         """
@@ -145,7 +149,9 @@ class OBSPrjManager(object):
                 os.path.join(branch, old_name), \
                 os.path.join(branch, new_name))
         log.info(cmd)
-        os.system(cmd)
+        for i in range(5):
+            if os.system(cmd) == 0:
+                break
     
     def manager_action(self):
         """
