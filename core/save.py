@@ -75,7 +75,9 @@ class SaveInfo(object):
                 csv_writer = csv.writer(f)
                 csv_writer.writerow([timestr, package_name, branch_name])
             cmd="cd %s && git add * && git commit -m 'update package info' && git push" % self.obs_pkg_rpms_files_dir
-            os.system(cmd)
+            for i in range(5):
+                if os.system(cmd) == 0:
+                    break
         except AttributeError as e:
             log.error(e)
         finally:
@@ -132,7 +134,9 @@ class SaveInfo(object):
             cmd = "cd %s && git pull && git add * && git commit -m 'update file' && git push" % \
                     self.obs_pkg_rpms_files_dir
             log.debug(cmd)
-            os.system(cmd)
+            for i in range(5):
+                if os.system(cmd) == 0:
+                    break
         except AttributeError as e:
             log.error(e)
         finally:
