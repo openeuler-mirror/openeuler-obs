@@ -66,7 +66,6 @@ class SYNCCode(object):
                 self.kwargs['source_server_port'])
         par = ParserConfigIni()
         self.obs_pkg_rpms_url = par.get_repos_dict()["obs_pkg_rpms"]
-        self._write_date_to_file()
 
     def _write_date_to_file(self):
         """
@@ -84,7 +83,7 @@ class SYNCCode(object):
             cmd2 = "cd %s && git pull && git add * && git commit -m 'update date for pkg %s' && git push"\
                     % (self.obs_pkg_prms_files_dir, self.repository)
             if os.system(cmd2) != 0:
-                log.error("fail to update file to %s")
+                log.error("fail to update file to %s" % self.repository)
         except AttributeError as e:
             log.error(e)
         finally:
@@ -207,6 +206,7 @@ class SYNCCode(object):
         """
         if not self.pkgs:
             if self.repository and not self.project:
+                self._write_date_to_file()
                 self._pre_sync_code()
             if not self.repository and self.project:
                 cmd = "osc ls %s" % self.project
@@ -222,17 +222,21 @@ class SYNCCode(object):
                 raise SystemExit('please check you arguments')
         else:
             for pkg in self.pkgs:
-                self.repository = pkg
-                log.info(pkg.replace('\n', ''))
-                self.repository = pkg.replace('\n', '')
-                if self.repository:
-                    self._pre_sync_code()
+                if "\n" in pkg:
+                    self.repository = pkg.replace('\n', '')
+                else:
+                    self.repository = pkg
+                self._write_date_to_file()
+                self._get_latest_gitee_pull()
+                self._gitee_pr_to_obs(self.project)
+
 
 class CheckCode(object):
     """
     Make sure that the codes for gitee and obs are the same
     """
     def __init__(self, **kwargs):
+        self.kwargs = kwargs
         self.project = kwargs["project"]
         self.branch = kwargs["branch"]
         cmd = "osc list %s" % self.project
@@ -351,6 +355,17 @@ class CheckCode(object):
                 pool.putRequest(req)
             pool.wait()
             log.info("codes not same between gitee and obs:%s" % self.not_same_packages)
+            self.sync_code()
+
+    def sync_code(self):
+        """
+        sync not_same_packages code
+        """
+        if self.not_same_packages:
+            log.info("Start synchronization code...")
+            self.kwargs['pkglist'] = self.not_same_packages
+            sy = SYNCCode(**self.kwargs)
+            sy.sync_code_to_obs()
 
 
 if __name__ == "__main__":
