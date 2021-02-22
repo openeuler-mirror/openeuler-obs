@@ -208,7 +208,7 @@ class SYNCCode(object):
             if self.repository and not self.project:
                 self._write_date_to_file()
                 self._pre_sync_code()
-            if not self.repository and self.project:
+            elif not self.repository and self.project:
                 cmd = "osc ls %s" % self.project
                 pkgs = os.popen(cmd).readlines()
                 log.info(pkgs)
