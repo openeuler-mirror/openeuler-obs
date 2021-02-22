@@ -117,6 +117,7 @@ class SYNCCode(object):
         cmd = "find %s -name %s | awk -F '/' '{print $4}'" % (path, self.repository)
         all_project = os.popen(cmd).readlines()
         log.info(all_project)
+        obs_project = None
         for project in all_project:
             obs_project = project.replace('\n', '')
             if ":Bak" in obs_project:
