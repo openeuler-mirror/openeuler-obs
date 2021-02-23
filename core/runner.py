@@ -25,7 +25,7 @@ from core.gitee_to_obs import SYNCCode
 from core.gitee_to_obs import CheckCode
 from core.package_manager import OBSPkgManager
 from core.update_obs_repos import RPMManager
-
+import os
 
 class Runner(object):
     """
@@ -38,6 +38,7 @@ class Runner(object):
         return:
         """
         self.kwargs = kwargs
+        kwargs["init_path"] = os.getcwd()
         parc = ParserConfigIni()
         self.update_enabled_flag = parc.get_update_enabled_flag()
         self.ignore_list = parc.get_ignored_repo()
