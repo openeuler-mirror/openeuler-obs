@@ -24,6 +24,7 @@ import sys
 import yaml
 import shutil
 import configparser
+from core.gitee_to_obs import SYNCCode
 current_path = os.path.join(os.path.split(os.path.realpath(__file__))[0])
 sys.path.append(os.path.join(current_path, ".."))
 from common.log_obs import log
@@ -251,7 +252,18 @@ class OBSPkgManager(object):
         """
         self._del_pkg(proj, pkg)
         self._add_pkg(new_proj, pkg, branch_name)
-    
+
+    def _sync_pkg_code(self, proj, pkg):
+        """
+        when adding a new package to a project, sync code
+        """
+        os.chdir(self.kwargs["init_path"])
+        log.info("Start synchronization code...")
+        self.kwargs['project'] = proj
+        self.kwargs['repository'] = pkg
+        sy = SYNCCode(**self.kwargs)
+        sy.sync_code_to_obs()
+
     def _parse_git_log(self, line):
         """
         deal diff_patch line mesg
@@ -343,6 +355,7 @@ class OBSPkgManager(object):
             if msg["log_type"] == "Add-pkg":
                 if msg["exist_flag"] == 0:
                     self._add_pkg(msg["proj"], msg["pkg"], msg["branch_name"])
+                    self._sync_pkg_code(msg["proj"], msg["pkg"])
             elif msg["log_type"] == "Del-pkg":
                 self._del_pkg(msg["proj"], msg["pkg"])
             elif msg["log_type"] == "Del-pkg-service":
@@ -432,6 +445,7 @@ class OBSPkgManager(object):
             if len(need_add):
                 for pkgname in list(need_add):
                     self._add_pkg(proj, pkgname, meta_pb_dict[proj])
+                    self._sync_pkg_code(proj, pkgname)
             if len(need_del):
                 for pkgname in list(need_del):
                     self._del_pkg(proj, pkgname)

@@ -209,6 +209,10 @@ class SYNCCode(object):
             if self.repository and not self.project:
                 self._write_date_to_file()
                 self._pre_sync_code()
+            elif self.repository and self.project:
+                self._write_date_to_file()
+                self._get_latest_gitee_pull()
+                self._gitee_pr_to_obs(self.project)
             elif not self.repository and self.project:
                 cmd = "osc ls %s" % self.project
                 pkgs = os.popen(cmd).readlines()
@@ -217,6 +221,7 @@ class SYNCCode(object):
                     log.info(pkg.replace('\n', ''))
                     self.repository = pkg.replace('\n', '')
                     if self.repository:
+                        self._write_date_to_file()
                         self._get_latest_gitee_pull()
                         self._gitee_pr_to_obs(self.project)
             else:
