@@ -253,7 +253,7 @@ class OBSPkgManager(object):
         self._del_pkg(proj, pkg)
         self._add_pkg(new_proj, pkg, branch_name)
 
-    def _sync_pkg_code(self, proj, pkg):
+    def _sync_pkg_code(self, proj, pkg, branch_name):
         """
         when adding a new package to a project, sync code
         """
@@ -261,6 +261,7 @@ class OBSPkgManager(object):
         log.info("Start synchronization code...")
         self.kwargs['project'] = proj
         self.kwargs['repository'] = pkg
+        self.kwargs['branch'] = branch_name
         sy = SYNCCode(**self.kwargs)
         sy.sync_code_to_obs()
 
@@ -355,7 +356,7 @@ class OBSPkgManager(object):
             if msg["log_type"] == "Add-pkg":
                 if msg["exist_flag"] == 0:
                     self._add_pkg(msg["proj"], msg["pkg"], msg["branch_name"])
-                    self._sync_pkg_code(msg["proj"], msg["pkg"])
+                    self._sync_pkg_code(msg["proj"], msg["pkg"], msg["branch_name"])
             elif msg["log_type"] == "Del-pkg":
                 self._del_pkg(msg["proj"], msg["pkg"])
             elif msg["log_type"] == "Del-pkg-service":
@@ -445,7 +446,7 @@ class OBSPkgManager(object):
             if len(need_add):
                 for pkgname in list(need_add):
                     self._add_pkg(proj, pkgname, meta_pb_dict[proj])
-                    self._sync_pkg_code(proj, pkgname)
+                    self._sync_pkg_code(proj, pkgname, meta_pb_dict[proj])
             if len(need_del):
                 for pkgname in list(need_del):
                     self._del_pkg(proj, pkgname)
