@@ -228,7 +228,8 @@ class RPMManager(object):
         update packages
         """
         if not self.pkgs:
-            self.pkgs = list(set(os.popen("osc list %s" % self.obs_project).read().split("\n")) - set(['']))
+            self.pkgs = list(set(list(set(os.popen("osc list %s" % self.obs_project).read().split("\n")) - set([''])) \
+                    + list(self.old_pkg_rpms.keys())))
         pool = threadpool.ThreadPool(10)
         requests = threadpool.makeRequests(self.update_pkg, self.pkgs)
         for req in requests:
@@ -244,8 +245,8 @@ class RPMManager(object):
         with open(self.obs_pkg_rpms_file, "w", encoding="utf-8") as f:
             yaml.dump(self.old_pkg_rpms, f)
         for i in range(5):
-            cmd = "cd %s && git pull && git add %s && git commit -m 'update rpms in file %s' \
-                    && git push && cd - && rm -rf %s" \
+            cmd = "cd %s && git add %s && git commit -m 'update rpms in file %s' \
+                    && git pull origin master --rebase && git push && cd - && rm -rf %s" \
                     % (self.obs_pkg_rpms_files_dir, self.obs_pkg_rpms_file, \
                     self.obs_pkg_rpms_file, self.obs_pkg_rpms_files_dir)
             if os.system(cmd) == 0:
@@ -261,25 +262,6 @@ class RPMManager(object):
         log.debug(cmd)
         ret = self.pex.ssh_cmd(cmd)
         log.debug(ret)
-
-    #def get_hdr(rpm_path):
-    #    ts = rpm.ts()
-    #    try:
-    #        fdno = os.open(rpm_path, os.O_RDONLY)
-    #        hdr = ts.hdrFromFdno(fdno)
-    #        os.close(fdno)
-    #    except:
-    #        log.error("ERROR: Init rpm error!")
-    #    return hdr
-
-    #def get_rpm_info(self, rpm_path):
-    #    """
-    #    rpm_path: rpm package's path
-    #    """
-    #    cmd = "rpm -qp --info %s | grep -E 'Name|Version|Release|Architecture' | awk -F '[:]' '{print $2}'" % rpm_path
-    #    res = os.popen(cmd).read().split("\n")
-    #    #logger.info(res)
-    #    return res[0].strip(), res[1].strip(), res[2].strip(), res[3].strip()
 
                     
 if __name__ == "__main__":
