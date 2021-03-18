@@ -66,6 +66,7 @@ class SYNCCode(object):
                 self.kwargs['source_server_port'])
         par = ParserConfigIni()
         self.obs_pkg_rpms_url = par.get_repos_dict()["obs_pkg_rpms"]
+        self.obs_pkg_prms_files_dir = None
 
     def _write_date_to_file(self):
         """
@@ -277,13 +278,13 @@ class CheckCode(object):
         cmd = "rm -rf %s" % package
         os.system(cmd)
         if spec_files:
-            spec_file = spec_files[0]
-            cmd = "wget https://gitee.com/src-openeuler/{0}/raw/{1}/{2} -O gitee_{3}".format(\
-                package, branch, spec_file, spec_file)
-            log.info("%s - %s" % (package, cmd))
-            if os.system(cmd) != 0:
-                os.system(cmd)
-            return "gitee_" + spec_file
+            for spec_file in spec_files:
+                cmd = "wget https://gitee.com/src-openeuler/{0}/raw/{1}/{2} -O {3}".format(\
+                    package, branch, spec_file, spec_file)
+                log.info("%s - %s" % (package, cmd))
+                if os.system(cmd) != 0:
+                    os.system(cmd)
+            return spec_files
         return None 
        # url = "https://gitee.com/api/v5/repos/src-openeuler/{0}/contents/%2F?ref={1}".format(package, branch)
        # ret = requests.get(url)
@@ -308,13 +309,12 @@ class CheckCode(object):
         spec_files = re.findall(str_find, data)
         log.info("%s - obs spec files: %s" % (package, spec_files))
         if spec_files:
-            for spec in spec_files:
-                if spec.endswith(".spec"):
-                    spec_file = spec
-            cmd = "osc co %s %s %s" % (project, package, spec_file)
-            log.info("%s - %s" % (package, cmd))
-            os.system(cmd)
-            return spec_file
+            for spec_file in spec_files:
+                cmd = "osc co %s %s %s" % (project, package, spec_file)
+                log.info("%s - %s" % (package, cmd))
+                if os.system(cmd) != 0:
+                    os.system(cmd)
+            return spec_files
         return None
 
     def same_or_not(self, gitee_spec, obs_spec):
@@ -323,15 +323,19 @@ class CheckCode(object):
         return: False - not same; True - same
         """
         if gitee_spec and obs_spec:
-            log.info("gitee spec:%s, obs spec:%s" % (gitee_spec, obs_spec))
-            cmd = "diff %s %s" % (gitee_spec, obs_spec)
-            ret = os.popen(cmd).read()
-            cmd = "rm -rf %s %s" % (gitee_spec, obs_spec)
-            os.system(cmd)
-            if ret:
-                return False
-            else:
-                return True
+            for ospec in obs_spec:
+                sf = ospec.split(":")[-1]
+                index = gitee_spec.index(sf)
+                log.info("gitee spec:%s, obs spec:%s" % (gitee_spec[index], ospec))
+                cmd = "diff %s %s" % (gitee_spec[index], ospec)
+                log.info(cmd)
+                ret = os.popen(cmd).read()
+                cmd = "rm -rf %s %s" % (gitee_spec[index], ospec)
+                os.system(cmd)
+                if ret:
+                    log.info("diff-" + ret)
+                    return False
+            return True
         elif not gitee_spec:
             log.info("SPEC: can't not find package spec file from gitee")
             return True
