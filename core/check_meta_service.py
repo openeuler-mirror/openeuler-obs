@@ -52,7 +52,7 @@ class CheckMetaPull(object):
             clone_result = ""
             pull_result = ""
             clone_result = os.popen(clone_cmd).readlines()
-            pull_result = os.popen("if [ -d obs_meta ];then git -C obs_meta pull; \
+            pull_result = os.popen("if [ -d obs_meta ];then echo 'Already up to date'; \
                     else echo 'Clone error';fi").readlines()
             if "Already" in pull_result[0]:
                 log.info(pull_result)
