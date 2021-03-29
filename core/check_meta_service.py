@@ -74,7 +74,7 @@ class CheckMetaPull(object):
             fetch_result = os.popen(fetch_cmd).read()
             log.info(fetch_result)
             branch_result = os.popen(branch_cmd).readlines()
-            if "thispr" in branch_result[0]:
+            if branch_result:
                 log.info(branch_result)
                 break
             else:
