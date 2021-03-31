@@ -85,6 +85,9 @@ par.add_argument("-cps", "--check_pkg_service", default=False,
         help="check if there are any problems with the content of the _service file in the rpm package", required=False)
 par.add_argument("-prid", "--pr_id", default=False,
         help="use the pr_id to get this pullrequest", required=False)
+
+par.add_argument("-a", "--ALL_", default=False, help="update all obs repo rpms", required=False)
+
 args = par.parse_args()
 #apply
 kw = {
@@ -116,6 +119,7 @@ kw = {
         "check_codes": args.check_codes,
         "check_pkg_service": args.check_pkg_service,
         "pr_id": args.pr_id,
+        "all":args.ALL_
         }
 
 run = Runner(**kw)

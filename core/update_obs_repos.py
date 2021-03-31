@@ -197,7 +197,10 @@ class RPMManager(object):
             old_rpms_list = None
         new_rpms_list = self.get_new_rpms_by_pkg(pkg)
         new_rpms_list.sort()
-        if old_rpms_list != new_rpms_list and new_rpms_list:
+        if self.kwargs["all"] and new_rpms_list:
+            self.copy_new_rpms_to_repo(pkg, new_rpms_list)
+            self.backup_old_rpms_by_pkg(pkg, old_rpms_list)
+        elif old_rpms_list != new_rpms_list and new_rpms_list:
             try:
                 self.copy_new_rpms_to_repo(pkg, new_rpms_list)
                 self.backup_old_rpms_by_pkg(pkg, old_rpms_list)
@@ -275,7 +278,7 @@ if __name__ == "__main__":
             "repo_server_port": "22233",
             "gitee_user": "xxxxxxxxx",
             "gitee_pwd": "xxxxxxxxx",
-            "pkglist": ["zip", "zsh"]
+            "pkglist": ["zip", "zsh"],
             }
     test = RPMManager(**kw)
     test.update_pkgs()
