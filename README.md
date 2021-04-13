@@ -20,9 +20,56 @@ Open build service system for openEuler community.
 
 #### 使用说明
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+1.  **工具的生成** 	    
+（1）git clone https://gitee.com/openeuler/openeuler-obs	    
+（2）pip3 install numpy pexpect pyinstaller PyYAML threadpool	    
+（3）cd openeuler-obs	    
+（4）pyinstaller openeuler_obs.py -p common/common.py -p common/log_obs.py -p common/parser_config.py -p core/check_meta_service.py -p core/gitee_to_obs.py -p core/package_manager.py -p core/project_manager.py -p core/runner.py -p core/save.py -p core/update_obs_repos.py --clean	    
+（5）cd dist/openeuler_obs && cp ../../config ./ -rf	    
+&emsp;完成以上操作后，即可使用。	    
+2.  **代码介绍及功能使用** 	
+
+|变量名称|含义|
+|--------------------|-----------------|
+| obs_meta_path      | obs_meta仓库的目录路径 |
+| OBS_SOURCE_IP      | 存放源码服务器的IP地址     |
+| OBS_SOURCE_PWD     | 存放源码服务器的密码       |
+| OBS_BACKEND_IP     | obs服务器的IP地址     |
+| OBS_BACKEND_PWD    | obs服务器的密码       |
+| GiteeCloneUserName | 码云账号名称          |
+| GiteeClonePassword | 码云账号密码          |
+| obs_project_name   | obs工程名         |
+| repo_name          | 二进制仓库名称         |
+| arch_name          | 架构名称            |
+| giteePullRequestlid | obs_meta仓库未合入的PR号 |
+| giteeTargetRepoName | 软件包仓库名称           |
+| giteeTargetBranch   | 码云分支名称            |
+
+（1）openeuler_obs.py：用于调度所有功能	    
+（2）core目录下	         
+&emsp;&emsp;● check_meta_service.py：对obs_meta仓库提交有关新增包PR的内容进行合规检查              
+&emsp;&emsp;命令：./openeuler_obs -cps true -prid giteePullRequestlid	    
+&emsp;&emsp;● gitee_to_obs.py：同步软件包码云仓库的代码到obs对应的工程	    
+&emsp;&emsp;命令：./openeuler_obs -r giteeTargetRepoName -o obs_meta_path -b giteeTargetBranch -ip OBS_SOURCE_IP -suser root -spwd OBS_SOURCE_PWD -guser GiteeCloneUserName -gpwd GiteeClonePassword	    
+&emsp;&emsp;● package_manager.py	    
+&emsp;&emsp;功能1：根据obs_meta仓库合入的PR对obs工程的软件包进行增删改操作	    
+&emsp;&emsp;命令：./openeuler_obs -r obs_meta -o obs_meta_path -ip OBS_SOURCE_IP -suser root -spwd OBS_SOURCE_PWD -guser GiteeCloneUserName -gpwd GiteeClonePassword	    
+&emsp;&emsp;功能2：检查obs_meta与obs工程上的软件包是否一致	    
+&emsp;&emsp;命令：./openeuler_obs -r obs_meta -o obs_meta_path -guser GiteeCloneUserName -gpwd GiteeClonePassword --check_meta True        
+&emsp;&emsp;功能3：检查obs_meta与src-openeuler.yaml中的软件包是否一致	    
+&emsp;&emsp;命令：./openeuler_obs -r obs_meta -o obs_meta_path -guser GiteeCloneUserName -gpwd GiteeClonePassword --check_yaml True        
+&emsp;&emsp;● project_manager.py：根据obs_meta仓库合入的PR对obs工程进行增删改操作	    
+&emsp;&emsp;命令：./openeuler_obs -r obs_meta -o obs_meta_path -ip OBS_SOURCE_IP -suser root -spwd OBS_SOURCE_PWD -guser GiteeCloneUserName -gpwd GiteeClonePassword	    
+&emsp;&emsp;● update_obs_repos.py：备份并更新二进制仓库中软件包的二进制	    
+&emsp;&emsp;命令1：./openeuler_obs -up True -p obs_project_name -repo repo_name -arch arch_name -rsip OBS_BACKEND_IP -rsu root -rsup OBS_BACKEND_PWD -guser GiteeCloneUserName -gpwd GiteeClonePassword（归档指定obs工程中所有软件包的二进制）	    
+&emsp;&emsp;命令2：./openeuler_obs -up True -p obs_project_name -repo repo_name -arch arch_name -rsip OBS_BACKEND_IP -rsu root -rsup OBS_BACKEND_PWD -guser GiteeCloneUserName -gpwd GiteeClonePassword --pkglist pkgs（归档指定obs工程中一个或多个软件包的二进制）	    
+&emsp;&emsp;● save.py：提供保存软件包变更信息的功能（供其他脚本调用）	    
+（3）config目录下	    
+&emsp;&emsp;● config.ini：配置文件	        
+（4）common目录下	    
+&emsp;&emsp;● common.py：提供对外开放的常用功能，如克隆仓库、远程执行命令、拷贝文件。（供其他脚本调用）	    
+&emsp;&emsp;● log_obs.py：提供log打印功能（供其他脚本调用）	    
+&emsp;&emsp;● parser_config.py：处理并读取config.ini配置文件中变量的值（供其他脚本调用）        
 
 #### 参与贡献
 
