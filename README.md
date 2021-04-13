@@ -7,27 +7,29 @@ Open build service system for openEuler community.
 软件架构说明
 ![输入图片说明](https://images.gitee.com/uploads/images/2020/1201/225845_f7674b15_6525505.png "Snipaste_2020-12-01_22-44-19.png")
 #### 功能列表
-| 序号   | 功能  | 详细描述  |
-|----|---|---|
-|  1  | 创建obs仓库 | 根据[obs_meta/OBS_PRJ_meta](https://gitee.com/src-openeuler/obs_meta/tree/master/OBS_PRJ_meta)目录下的meta文件创建obs空仓或obs已有仓库的备份仓库   |
-|  2  | 删除obs仓库 | [obs_meta/OBS_PRJ_meta](https://gitee.com/src-openeuler/obs_meta/tree/master/OBS_PRJ_meta)目录下的meta文件被删除，则删除对应的obs仓库  |
-|  3  | 创建obs仓库软件包  | 根据[obs_meta](https://gitee.com/src-openeuler/obs_meta)的提交记录，在obs对应仓库中创建软件包及软件包下的_service文件  |
-|  4  | 删除obs仓库软件包  | 根据[obs_meta](https://gitee.com/src-openeuler/obs_meta)的提交记录，删除obs对应仓库中的软件包  |
-|  5  | 修改obs仓库软件包的_service  | 根据[obs_meta](https://gitee.com/src-openeuler/obs_meta)的提交记录，修改obs对应仓库中创建软件包的_service文件  |
-|  6  | 软件包检查 | 根据[community/repository](https://gitee.com/openeuler/community/tree/master/repository)/目录下的src-openeuler.yam文件及[obs_meta](https://gitee.com/src-openeuler/obs_meta)对obs仓库的软件包进行检视，补充缺少的软件包、删除码云上不存在的软件包  |
-|  7  | 软件包代码更新 | 将码云软件包仓库的代码同步到obs仓库，设置同步开关(开关打开：正常同步;开关关闭：代码不同步，如需同步则后续人工同步) |
+| 序号   | 功能  | 详细描述  | 模块名 |
+|----|---|---|---|
+|  1  | 创建obs仓库 | 根据[obs_meta/OBS_PRJ_meta](https://gitee.com/src-openeuler/obs_meta/tree/master/OBS_PRJ_meta)目录下的meta文件创建obs空仓或obs已有仓库的备份仓库   | project_manager.py |
+|  2  | 修改obs仓库的Meta配置 | 根据[obs_meta/OBS_PRJ_meta](https://gitee.com/src-openeuler/obs_meta/tree/master/OBS_PRJ_meta)目录下的meta文件修改obs仓库的配置   | project_manager.py |
+|  3  | 删除obs仓库 | [obs_meta/OBS_PRJ_meta](https://gitee.com/src-openeuler/obs_meta/tree/master/OBS_PRJ_meta)目录下的meta文件被删除，则删除对应的obs仓库  | project_manager.py |
+|  4  | 创建obs仓库软件包  | 根据[obs_meta](https://gitee.com/src-openeuler/obs_meta)的提交记录，在obs对应仓库中创建软件包及软件包下的_service文件  | package_manager.py |
+|  5  | 删除obs仓库软件包  | 根据[obs_meta](https://gitee.com/src-openeuler/obs_meta)的提交记录，删除obs对应仓库中的软件包  | package_manager.py |
+|  6  | 修改obs仓库软件包的_service  | 根据[obs_meta](https://gitee.com/src-openeuler/obs_meta)的提交记录，修改obs对应仓库中创建软件包的_service文件  | package_manager.py |
+|  7  | 软件包检查 | 根据[community/repository](https://gitee.com/openeuler/community/tree/master/repository)/目录下的src-openeuler.yam文件及[obs_meta](https://gitee.com/src-openeuler/obs_meta)对obs仓库的软件包进行检视，补充缺少的软件包、删除码云上不存在的软件包  | package_manager.py |
+|  8  | 软件包检查 | 根据obs仓库及[obs_meta](https://gitee.com/src-openeuler/obs_meta)对obs仓库的软件包进行检视，补充缺少的软件包、删除obs_meta中不存在的软件包 |  package_manager.py |
+|  9  | 软件包代码更新 | 将码云软件包仓库的代码同步到obs仓库，设置同步开关(开关打开：正常同步;开关关闭：代码不同步，如需同步则后续人工同步) | gitee_to_obs.py |
 
 
 #### 使用说明
 
-1.  **工具的生成** 	    
+1.  **工具打包** 	    
 （1）git clone https://gitee.com/openeuler/openeuler-obs	    
 （2）pip3 install numpy pexpect pyinstaller PyYAML threadpool	    
 （3）cd openeuler-obs	    
 （4）pyinstaller openeuler_obs.py -p common/common.py -p common/log_obs.py -p common/parser_config.py -p core/check_meta_service.py -p core/gitee_to_obs.py -p core/package_manager.py -p core/project_manager.py -p core/runner.py -p core/save.py -p core/update_obs_repos.py --clean	    
 （5）cd dist/openeuler_obs && cp ../../config ./ -rf	    
 &emsp;完成以上操作后，即可使用。	    
-2.  **代码介绍及功能使用** 	
+2.  **使用** 	
 
 |变量名称|含义|
 |--------------------|-----------------|
