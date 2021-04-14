@@ -88,9 +88,9 @@ class CheckMetaPull(object):
         new_pkg_path = []
         for pkg in changed_file_result:
             if "A\t" in pkg:
-                all_msg = pkg.replace("\n", "").split('/')
+                all_msg = pkg.replace("\n", "")
                 log.info(all_msg)
-                pkg_path = all_msg[0].replace("A\t", "") + '/' + all_msg[1] + '/' + all_msg[-2]
+                pkg_path = all_msg.replace("A\t", "")
                 new_pkg_path.append(pkg_path)
         log.info("All_change_pkg:%s" % new_pkg_path)
         if not new_pkg_path:
@@ -104,59 +104,63 @@ class CheckMetaPull(object):
         Function modules: Check the format of the service file and the correctness of its URL
         """
         error_flag = ""
+        service_flag = "" 
         for pkg_path in pkg_path_list:
-            try:
-                ET.parse(pkg_path + "/" + "_service")
-                log.info("**************FORMAT CORRECT***************")
-                log.info("The %s has a nice _service" % pkg_path)
-                log.info("**************FORMAT CORRECT***************")
-            except Exception as e:
-                log.error("**************FORMAT ERROR*****************")
-                log.error("MAY be %s has a bad _service format" % pkg_path)
-                log.error("%s/_service format bad Because:%s" % (pkg_path, e))
-                log.error("**************FORMAT ERROR*****************")
-                error_flag = "yes"
-            service_path = pkg_path + '/' + '_service'
-            #log.info("Service_path:%s" % service_path)
-            url_result = ""
-            with open(service_path, "r") as f:
-                log.info('\n' + f.read())
-                f.seek(0, 0)
-                for url in f.readlines():
-                    if "name=\"url\"" in url.replace("\n", ""):
-                        all_url = url.replace("\n", "").split('/')
-                        #log.info(all_url)
-                        spkg_name = all_url[-2].replace("<", "")
-                        spkg_url = all_url[-3]
-                        pkg_name = pkg_path.split('/')[-1]
-                        pkg_url = pkg_path.split('/')[0]
-                        log.info("Service_pkgname:%s" % spkg_name)
-                        log.info("Service_pkgurl:%s" % spkg_url)
-                        log.info("Pkgname:%s" % pkg_name)
-                        log.info("Pkg_url:%s" % pkg_url)
-                        if spkg_url == "openEuler" and pkg_url == "master":
-                            if spkg_name == pkg_name:
-                                log.info("Yes:The %s in _service url is correct" % pkg_name)
+            if "_service" in pkg_path:
+                service_flag = "exist"
+                try:
+                    ET.parse(pkg_path)
+                    log.info("**************FORMAT CORRECT***************")
+                    log.info("The %s has a nice _service" % pkg_path)
+                    log.info("**************FORMAT CORRECT***************")
+                except Exception as e:
+                    log.error("**************FORMAT ERROR*****************")
+                    log.error("MAY be %s has a bad _service format" % pkg_path)
+                    log.error("%s/_service format bad Because:%s" % (pkg_path, e))
+                    log.error("**************FORMAT ERROR*****************")
+                    error_flag = "yes"
+                service_path = pkg_path
+                url_result = ""
+                with open(service_path, "r") as f:
+                    log.info('\n' + f.read())
+                    f.seek(0, 0)
+                    for url in f.readlines():
+                        if "name=\"url\"" in url.replace("\n", ""):
+                            all_url = url.replace("\n", "").split('/')
+                            #log.info(all_url)
+                            spkg_name = all_url[-2].replace("<", "")
+                            spkg_url = all_url[-3]
+                            pkg_name = pkg_path.split('/')[-2]
+                            pkg_url = pkg_path.split('/')[0]
+                            log.info("Service_pkgname:%s" % spkg_name)
+                            log.info("Service_pkgurl:%s" % spkg_url)
+                            log.info("Pkgname:%s" % pkg_name)
+                            log.info("Pkg_url:%s" % pkg_url)
+                            if spkg_url == "openEuler" and pkg_url == "master":
+                                if spkg_name == pkg_name:
+                                    log.info("Yes:The %s in _service url is correct" % pkg_name)
+                                else:
+                                    log.error("**************_Service URL ERROR*****************")
+                                    log.error("FAILED The %s in _service pkgname is not same" % pkg_name)
+                                    error_flag = "yes"
+                            elif spkg_url == pkg_url:
+                                if spkg_name == pkg_name:
+                                    log.info("Yes:The %s in _service url is correct" % pkg_name)
+                                else:
+                                    log.error("**************_Service URL ERROR*****************")
+                                    log.error("FAILED The %s in _service pkgname is not same" % pkg_name)
+                                    error_flag = "yes"
                             else:
                                 log.error("**************_Service URL ERROR*****************")
-                                log.error("FAILED The %s in _service pkgname is not same" % pkg_name)
+                                log.error("FAILED You need to check your %s _service again" % pkg_name)
                                 error_flag = "yes"
-                        elif spkg_url == pkg_url:
-                            if spkg_name == pkg_name:
-                                log.info("Yes:The %s in _service url is correct" % pkg_name)
-                            else:
-                                log.error("**************_Service URL ERROR*****************")
-                                log.error("FAILED The %s in _service pkgname is not same" % pkg_name)
-                                error_flag = "yes"
-                        else:
-                            log.error("**************_Service URL ERROR*****************")
-                            log.error("FAILED You need to check your %s _service again" % pkg_name)
-                            error_flag = "yes"
-                        break
+                            break
         os.chdir("../")
         self._clean()
         if error_flag == "yes":
             raise SystemExit("*******PLEASE CHECK AGAIN*******")
+        if service_flag == "":
+            log.info("There has no pkg add to project")
 
     def do_all(self):
         """

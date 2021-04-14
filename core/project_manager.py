@@ -91,7 +91,7 @@ class OBSPrjManager(object):
                 cmd = "cp -r %s %s" % (os.path.join(branch, name.replace(":Bak", "")), 
                     obs_prj_dir)
             else:
-                cmd = "mkdir %s && touch %s/README.md" % (obs_prj_dir, obs_prj_dir)
+                cmd = "mkdir -p %s && touch %s/README.md" % (obs_prj_dir, obs_prj_dir)
             res = os.popen(cmd).read()
             log.info(res)
         log.info("create new obs project by meta file %s" % meta_file)
