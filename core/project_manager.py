@@ -54,6 +54,7 @@ class OBSPrjManager(object):
         message = ret.split("\n")
         log.info(message)
         for msg in message:
+            msg = ' '.join(msg.split())
             log.info(msg)
             if "OBS_PRJ_meta" not in msg:
                 continue
@@ -62,7 +63,12 @@ class OBSPrjManager(object):
                 continue
             tmp = {}
             tmp["action_type"] = action_type 
-            tmp["branch"] = msg.split(" ")[1].split("/")[1]
+            if "multi" in msg:
+                tmp["multi_dir"] = msg.split(" ")[1].split("/")[1]
+                tmp["branch"] =  msg.split(" ")[1].split("/")[2]
+            else:
+                tmp["multi_dir"] = ""
+                tmp["branch"] = msg.split(" ")[1].split("/")[1]
             if action_type in ["A", "D", "M"]:
                 tmp["file"] = msg.split(" ")[1]
                 tmp["name"] = tmp["file"].split("/")[-1]
@@ -77,14 +83,14 @@ class OBSPrjManager(object):
         log.info(self.commit_msg)
         return 0
 
-    def _create(self, branch, name, meta_file):
+    def _create(self, multi_dir, branch, name, meta_file):
         """
         create project
         branch: branch name
         name: name of obs project
         meta_file: meta of obs project
         """
-        obs_prj_dir = os.path.join(branch, name)
+        obs_prj_dir = os.path.join(multi_dir, branch, name)
         log.info("obs project dir path: %s" % obs_prj_dir)
         if not os.path.exists(obs_prj_dir):
             if name.endswith(":Bak"):
@@ -114,7 +120,7 @@ class OBSPrjManager(object):
         cmd = "osc api -X PUT /source/%s/_meta -T %s" % (name, meta_file)
         os.system(cmd)
 
-    def _delete(self, branch, name):
+    def _delete(self, multi_dir, branch, name):
         """
         delete project
         branch: branch name
@@ -124,12 +130,12 @@ class OBSPrjManager(object):
         cmd = "osc api -X DELETE /source/%s" % name
         os.system(cmd)
         cmd = "git rm -r %s && git commit -m 'delete project %s' && \
-                git push" % (os.path.join(branch, name), name)
+                git push" % (os.path.join(multi_dir, branch, name), name)
         for i in range(5):
             if os.system(cmd) == 0:
                 break
 
-    def _rename(self, branch, old_name, new_name, new_meta):
+    def _rename(self, multi_dir, branch, old_name, new_name, new_meta):
         """
         rename project
         branch: branch name
@@ -142,12 +148,12 @@ class OBSPrjManager(object):
         os.system(cmd)
         cmd = "cp -r %s %s && git rm -r %s && git add %s && \
                 git commit -m 'rename project %s to %s' && \
-                git push" % (os.path.join(branch, old_name), \
-                os.path.join(branch, new_name), \
-                os.path.join(branch, old_name), \
-                os.path.join(branch, new_name), \
-                os.path.join(branch, old_name), \
-                os.path.join(branch, new_name))
+                git push" % (os.path.join(multi_dir, branch, old_name), \
+                os.path.join(multi_dir, branch, new_name), \
+                os.path.join(multi_dir, branch, old_name), \
+                os.path.join(multi_dir, branch, new_name), \
+                os.path.join(multi_dir, branch, old_name), \
+                os.path.join(multi_dir, branch, new_name))
         log.info(cmd)
         for i in range(5):
             if os.system(cmd) == 0:
@@ -162,13 +168,13 @@ class OBSPrjManager(object):
             return res
         for msg in self.commit_msg:
             if msg["action_type"] == "A":
-                self._create(msg["branch"], msg["name"], msg["file"])
+                self._create(msg["multi_dir"], msg["branch"], msg["name"], msg["file"])
             elif msg["action_type"] == "M":
                 self._change_meta(msg["name"], msg["file"])
             elif msg["action_type"] == "D":
-                self._delete(msg["branch"], msg["name"])
+                self._delete(msg["multi_dir"], msg["branch"], msg["name"])
             elif msg["action_type"].startswith("R"):
-                self._rename(msg["branch"], msg["old_name"], msg["new_name"], msg["new_file"])
+                self._rename(msg["multi_dir"], msg["branch"], msg["old_name"], msg["new_name"], msg["new_file"])
         return 0
 
 
