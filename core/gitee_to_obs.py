@@ -99,23 +99,34 @@ class SYNCCode(object):
         log.info("Git clone the %s in %s" % (rpm_dir, gitee_branch))
         self.cmd.ssh_cmd("rm -rf %s " % (path))
         repo_url = "https://%s:%s@gitee.com/src-openEuler/%s" % (self.giteeuser, self.giteeuserpwd, rpm_dir)
-        clone_result = self.cmd.ssh_cmd("git lfs clone --depth=1 %s -b %s %s"
-                % (repo_url, gitee_branch, path), 600)
-        pull_result_last = str(self.cmd.ssh_cmd('git -C %s pull' % path)[1].strip()).split("'")[1]
-        if "Already" in pull_result_last:
-            log.info(pull_result_last)
-            log.info("At now %s the branch is in %s" % (rpm_dir, gitee_branch))
-        else:
-            raise SystemExit('Git clone error')
+        for i in range(5):
+            clone_result = self.cmd.ssh_cmd("git lfs clone --depth=1 %s -b %s %s"
+                    % (repo_url, gitee_branch, path), 600)
+            pull_result_last = str(self.cmd.ssh_cmd('git -C %s pull' % path)[1].strip()).split("'")[1]
+            if "Already" in pull_result_last:
+                log.info(pull_result_last)
+                log.info("At now %s the branch is in %s" % (rpm_dir, gitee_branch))
+                return
+            else:
+                log.info("_GIT_CLONE: %s" % i)
+                clear_repo = self.cmd.ssh_cmd("rm -rf %s" % path)
+                log.info("clear_repo:%s" % clear_repo)
+                continue
+        raise SystemExit('Git clone error')
 
     def _get_obs_project(self):
         """
         Get the obs project from gitee_branch
         """
         log.info("Start get the obs_project")
-        path = self.meta_path + '/' + self.gitee_branch
-        log.info(path)
-        cmd = "find %s -name %s | awk -F '/' '{print $4}'" % (path, self.repository)
+        if "multi" in self.gitee_branch:
+            path = self.meta_path + '/' + 'multi_version/' + self.gitee_branch
+            log.info(path)
+            cmd = "find %s -name %s | awk -F '/' '{print $5}'" % (path, self.repository)
+        else:
+            path = self.meta_path + '/' + self.gitee_branch
+            log.info(path)
+            cmd = "find %s -name %s | awk -F '/' '{print $4}'" % (path, self.repository)
         all_project = os.popen(cmd).readlines()
         log.info(all_project)
         obs_project = None
@@ -139,6 +150,8 @@ class SYNCCode(object):
         """
         if self.gitee_branch == "master":
             source_path = "/srv/cache/obs/tar_scm/repo/next/openEuler"
+        elif "multi" in self.gitee_branch:
+            source_path = "/srv/cache/obs/tar_scm/repo/next/openEuler/multi_version/" + self.gitee_branch
         else:
             source_path = "/srv/cache/obs/tar_scm/repo/next/" + self.gitee_branch
         if self.repository == "CreateImage":
