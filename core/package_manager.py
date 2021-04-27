@@ -46,7 +46,9 @@ class OBSPkgManager(object):
         self.patch_file_path = os.path.join(self.work_dir, "diff_patch")
         self.giteeUserName = self.kwargs["gitee_user"]
         self.giteeUserPwd = self.kwargs["gitee_pwd"]
+        self.sync_code = self.kwargs["sync_code"]
         self.import_list = []
+        self.parent_dir = ''
 
     def _pre_env(self):
         """
@@ -86,7 +88,7 @@ class OBSPkgManager(object):
             os.system("osc co %s %s &>/dev/null" % (proj, pkg))
         else:
             os.system("osc co %s `osc ls %s | sed -n '1p'` &>/dev/null" % (proj, proj))
-        pkg_path = os.path.join(self.obs_meta_path, '%s/%s/%s' % (branch_name, proj, pkg))
+        pkg_path = os.path.join(self.obs_meta_path, self.parent_dir, '%s/%s/%s' % (branch_name, proj, pkg))
         os.chdir(proj)
         if os.path.exists(pkg):
             os.system("cp -rf %s ." % pkg_path)
@@ -111,14 +113,14 @@ class OBSPkgManager(object):
         write and push _service file in obs_meta
         return 0 or -1
         """
-        proj_path = os.path.join(self.obs_meta_path, branch_name, proj)
+        proj_path = os.path.join(self.obs_meta_path, self.parent_dir, branch_name, proj)
         service_file = os.path.join(proj_path, pkg, "_service")
         if not os.path.exists(proj_path):
-            log.warning("obs_meta do not have %s %s" % (branch_name, proj))
+            log.warning("obs_meta do not have %s %s %s" % (self.parent_dir, branch_name, proj))
             return -1
         if os.system("test -f %s" % service_file) == 0:
-            log.warning("obs_meta haved %s %s %s _service file, no need to add."
-                    % (branch_name, proj, pkg))
+            log.warning("obs_meta haved %s %s %s %s _service file, no need to add."
+                    % (self.parent_dir, branch_name, proj, pkg))
             return -1
         os.chdir(proj_path)
         if not os.path.exists(pkg):
@@ -130,12 +132,14 @@ class OBSPkgManager(object):
         f.write('      <param name="scm">repo</param>\n')
         if branch_name == "master":
             f.write('      <param name="url">next/openEuler/%s</param>\n' % pkg)
-        else:
+        if self.parent_dir == "":
             f.write('      <param name="url">next/%s/%s</param>\n' % (branch_name, pkg))
+        else:
+            f.write('      <param name="url">next/%s/%s/%s</param>\n' % (self.parent_dir, branch_name, pkg))
         f.write('    </service>\n')
         f.write('</services>\n')
         f.close()
-        os.chdir("%s/%s/%s" % (self.obs_meta_path, branch_name, proj))
+        os.chdir("%s/%s/%s/%s" % (self.obs_meta_path, self.parent_dir, branch_name, proj))
         os.system("git add %s" % pkg)
         os.system("git commit -m 'add _service file by %s'" % self.giteeUserName)
         log.info("add %s %s _service file by %s" % (proj, pkg, self.giteeUserName))
@@ -191,15 +195,15 @@ class OBSPkgManager(object):
         delete the obs_meta project pkg service file
         return 0 or -1
         """
-        proj_path = os.path.join(self.obs_meta_path, branch, proj)
+        proj_path = os.path.join(self.obs_meta_path, self.parent_dir, branch, proj)
         service_file = os.path.join(proj_path, pkg, "_service")
         if os.system("test -f %s" % service_file) != 0:
-            log.warning("obs_meta not have %s %s %s _service file" % (branch, proj, pkg))
+            log.warning("obs_meta not have %s %s %s %s _service file" % (self.parent_dir, branch, proj, pkg))
             return -1
         os.chdir(proj_path)
         os.system("rm -rf %s" % pkg)
         os.system("git add -A && git commit -m 'delete %s by %s'" % (pkg, self.giteeUserName))
-        log.info("delete obs_meta %s %s %s by %s" % (branch, proj, pkg, self.giteeUserName))
+        log.info("delete obs_meta %s %s %s %s by %s" % (self.parent_dir, branch, proj, pkg, self.giteeUserName))
         for i in range(5):
             if os.system("git push") == 0:
                 break
@@ -217,7 +221,7 @@ class OBSPkgManager(object):
         os.chdir(self.work_dir)
         proj_path = os.path.join(self.work_dir, proj)
         pkg_path = os.path.join(proj_path, pkg)
-        service_file_path = os.path.join(self.obs_meta_path, "%s/%s/%s/_service"
+        service_file_path = os.path.join(self.obs_meta_path, self.parent_dir, "%s/%s/%s/_service"
                 % (branch_name, proj, pkg))
         if os.path.exists(proj_path):
             shutil.rmtree(proj)
@@ -238,7 +242,7 @@ class OBSPkgManager(object):
             log.warning("%s %s not found" % (proj, pkg))
             return -1
         os.chdir(self.work_dir)
-        file_path = os.path.join(self.obs_meta_path, "%s/%s/%s/.osc/_meta"
+        file_path = os.path.join(self.obs_meta_path, self.parent_dir, "%s/%s/%s/.osc/_meta"
                 % (branch_name, proj, pkg))
         cmd = "osc meta pkg %s %s --file=%s | grep ^Done." % (proj, pkg, file_path)
         if os.system(cmd) != 0:
@@ -272,14 +276,23 @@ class OBSPkgManager(object):
         log.info("line:%s" % line)
         new_proj = ''
         new_file_path = ''
+        parent_dir = ''
         log_list = list(line.split())
         temp_log_type = log_list[0]
         file_path = log_list[1]
         if len(log_list) == 3:
             new_file_path = list(line.split())[2]
-        branch_name, proj, pkg, file_name = str(file_path).split('/')
+        tmp_str = str(file_path).split('/')
+        if len(tmp_str) == 5:
+            parent_dir, branch_name, proj, pkg, file_name = tmp_str
+        else:
+            branch_name, proj, pkg, file_name = str(file_path).split('/')
         if len(new_file_path) != 0:
-            new_proj = new_file_path.split('/')[1]
+            new_file_path_list = new_file_path.split('/')
+            if len(new_file_path_list) == 5:
+                new_proj = new_file_path_list[2]
+            else:
+                new_proj = new_file_path_list[1]
             log_type = "Change-pkg-prj"
         elif file_name == "_meta":
             if temp_log_type == "A" or temp_log_type == "M":
@@ -290,7 +303,7 @@ class OBSPkgManager(object):
             if temp_log_type == "A":
                 log_type = "Add-pkg"
             elif temp_log_type == "D":
-                pkg_path = os.path.join(self.obs_meta_path, '%s/%s/%s' % (branch_name, proj, pkg))
+                pkg_path = os.path.join(self.obs_meta_path, parent_dir, '%s/%s/%s' % (branch_name, proj, pkg))
                 if os.path.exists(pkg_path):
                     log_type = "Del-pkg-service"
                 else:
@@ -304,7 +317,7 @@ class OBSPkgManager(object):
                 log.error("%s failed" % line)
         else:
             log.error("%s failed" % line)
-        mesg_list = [log_type, branch_name, proj, pkg, new_proj]  
+        mesg_list = [log_type, branch_name, proj, pkg, new_proj, parent_dir]  
         return mesg_list
     
     def _deal_some_param(self):
@@ -321,13 +334,14 @@ class OBSPkgManager(object):
                 if os.popen(cmd1).read():
                     tmp = {}
                     line = line.strip('\n')
-                    log_type, branch_name, proj, pkg, new_proj = self._parse_git_log(line)
+                    log_type, branch_name, proj, pkg, new_proj, parent_dir = self._parse_git_log(line)
                     tmp["log_type"] = log_type
                     tmp["branch_name"] = branch_name
                     tmp["proj"] = proj
                     tmp["pkg"] = pkg
                     tmp["new_proj"] = new_proj
                     tmp["exist_flag"] = 0
+                    tmp["parent_dir"] = parent_dir
                     for p in proj_list:
                         cmd3 = "osc ls %s 2>&1 | grep -q -Fx %s" % (p, pkg)
                         if os.system(cmd3) == 0:
@@ -353,10 +367,12 @@ class OBSPkgManager(object):
         self._deal_some_param()
         log.info(self.import_list)
         for msg in self.import_list:
+            self.parent_dir = msg["parent_dir"]
             if msg["log_type"] == "Add-pkg":
                 if msg["exist_flag"] == 0:
                     self._add_pkg(msg["proj"], msg["pkg"], msg["branch_name"])
-                    self._sync_pkg_code(msg["proj"], msg["pkg"], msg["branch_name"])
+                    if self.sync_code:
+                        self._sync_pkg_code(msg["proj"], msg["pkg"], msg["branch_name"])
             elif msg["log_type"] == "Del-pkg":
                 self._del_pkg(msg["proj"], msg["pkg"])
             elif msg["log_type"] == "Del-pkg-service":
@@ -367,6 +383,8 @@ class OBSPkgManager(object):
                 self._modify_pkg_meta(msg["proj"], msg["pkg"], msg["branch_name"])
             elif msg["log_type"] == "Change-pkg-prj":
                 self._change_pkg_prj(msg["proj"], msg["new_proj"], msg["pkg"], msg["branch_name"])
+                if self.sync_code:
+                    self._sync_pkg_code(msg["new_proj"], msg["pkg"], msg["branch_name"])
         return 0
 
     def _parse_yaml_data(self):
@@ -446,7 +464,8 @@ class OBSPkgManager(object):
             if len(need_add):
                 for pkgname in list(need_add):
                     self._add_pkg(proj, pkgname, meta_pb_dict[proj])
-                    self._sync_pkg_code(proj, pkgname, meta_pb_dict[proj])
+                    if self.sync_code:
+                        self._sync_pkg_code(proj, pkgname, meta_pb_dict[proj])
             if len(need_del):
                 for pkgname in list(need_del):
                     self._del_pkg(proj, pkgname)
