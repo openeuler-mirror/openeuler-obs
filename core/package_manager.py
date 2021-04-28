@@ -85,11 +85,21 @@ class OBSPkgManager(object):
         if os.path.exists(proj):
             shutil.rmtree(proj)
         if os.system("osc ls %s %s &>/dev/null" % (proj, pkg)) == 0:
-            os.system("osc co %s %s &>/dev/null" % (proj, pkg))
+            if os.system("osc co %s %s &>/dev/null" % (proj, pkg)) == 0:
+                log.info("osc co %s %s success!" % (proj, pkg))
+            else:
+                log.info("osc co %s %s failed!" % (proj, pkg))
         else:
-            os.system("osc co %s `osc ls %s | sed -n '1p'` &>/dev/null" % (proj, proj))
+            if os.system("osc co %s `osc ls %s | sed -n '1p'` &>/dev/null" % (proj, proj)) == 0:
+                log.info("osc co %s success!" % proj)
+            else:
+                log.info("osc co %s failed!" % proj)
         pkg_path = os.path.join(self.obs_meta_path, self.parent_dir, '%s/%s/%s' % (branch_name, proj, pkg))
-        os.chdir(proj)
+        if os.path.exists(proj):
+            os.chdir(proj)
+        else:
+            log.info("add %s %s failed!" % (proj, pkg))
+            return -1
         if os.path.exists(pkg):
             os.system("cp -rf %s ." % pkg_path)
             cmd = "osc status | grep ^? | awk '{print 2}'"
@@ -158,11 +168,14 @@ class OBSPkgManager(object):
         if os.system("osc ls %s %s &>/dev/null" % (proj, pkg)) == 0:
             if os.path.exists(proj_path):
                 shutil.rmtree(proj)
-            os.system("osc co %s %s &>/dev/null" % (proj, pkg))
-            os.chdir(proj)
-            os.system("osc rm %s" % pkg)
-            os.system("osc ci -m 'delete by %s'" % self.giteeUserName)
-            log.info("delete %s %s by %s" % (proj, pkg, self.giteeUserName))
+            if os.system("osc co %s %s &>/dev/null" % (proj, pkg)) == 0:
+                os.chdir(proj)
+                os.system("osc rm %s" % pkg)
+                os.system("osc ci -m 'delete by %s'" % self.giteeUserName)
+                log.info("delete %s %s by %s" % (proj, pkg, self.giteeUserName))
+            else:
+                log.info("delete %s %s failed!" % (proj, pkg))
+                return -1
         else:
             log.warning("obs %s %s not found" % (proj, pkg))
             return -1
@@ -182,11 +195,14 @@ class OBSPkgManager(object):
         pkg_path = os.path.join(proj_path, pkg)
         if os.path.exists(proj_path):
             shutil.rmtree(proj)
-        os.system("osc co %s %s &>/dev/null" % (proj, pkg))
-        os.chdir(pkg_path)
-        os.system("test -f _service && osc rm _service")
-        os.system("osc ci -m 'delete _service by %s'" % self.giteeUserName)
-        log.info("delete obs %s %s _service by %s" % (proj, pkg, self.giteeUserName))
+        if os.system("osc co %s %s &>/dev/null" % (proj, pkg)) == 0:
+            os.chdir(pkg_path)
+            os.system("test -f _service && osc rm _service")
+            os.system("osc ci -m 'delete _service by %s'" % self.giteeUserName)
+            log.info("delete obs %s %s _service by %s" % (proj, pkg, self.giteeUserName))
+        else:
+            log.info("delete %s %s _service failed!" % (proj, pkg))
+            return -1
         os.chdir(self.work_dir)
         return 0
     
@@ -225,11 +241,14 @@ class OBSPkgManager(object):
                 % (branch_name, proj, pkg))
         if os.path.exists(proj_path):
             shutil.rmtree(proj)
-        os.system("osc co %s %s &>/dev/null" % (proj, pkg))
-        os.system("cp -f %s %s" % (service_file_path, pkg_path))
-        os.chdir(pkg_path)
-        os.system("osc add _service")
-        os.system("osc ci -m 'modify by %s'" % self.giteeUserName)
+        if os.system("osc co %s %s &>/dev/null" % (proj, pkg)) == 0:
+            os.system("cp -f %s %s" % (service_file_path, pkg_path))
+            os.chdir(pkg_path)
+            os.system("osc add _service")
+            os.system("osc ci -m 'modify by %s'" % self.giteeUserName)
+        else:
+            log.info("modify %s %s _service failed!" % (proj, pkg))
+            return -1
         os.chdir(self.work_dir)
         return 0
     
@@ -370,8 +389,8 @@ class OBSPkgManager(object):
             self.parent_dir = msg["parent_dir"]
             if msg["log_type"] == "Add-pkg":
                 if msg["exist_flag"] == 0:
-                    self._add_pkg(msg["proj"], msg["pkg"], msg["branch_name"])
-                    if self.sync_code:
+                    ret = self._add_pkg(msg["proj"], msg["pkg"], msg["branch_name"])
+                    if self.sync_code and ret != -1:
                         self._sync_pkg_code(msg["proj"], msg["pkg"], msg["branch_name"])
             elif msg["log_type"] == "Del-pkg":
                 self._del_pkg(msg["proj"], msg["pkg"])
