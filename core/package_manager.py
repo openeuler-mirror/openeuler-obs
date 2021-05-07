@@ -24,6 +24,7 @@ import sys
 import yaml
 import shutil
 import configparser
+from concurrent.futures import ThreadPoolExecutor
 from core.gitee_to_obs import SYNCCode
 current_path = os.path.join(os.path.split(os.path.realpath(__file__))[0])
 sys.path.append(os.path.join(current_path, ".."))
@@ -47,8 +48,7 @@ class OBSPkgManager(object):
         self.giteeUserName = self.kwargs["gitee_user"]
         self.giteeUserPwd = self.kwargs["gitee_pwd"]
         self.sync_code = self.kwargs["sync_code"]
-        self.import_list = []
-        self.parent_dir = ''
+        self.multi_version_dir = ''
 
     def _pre_env(self):
         """
@@ -58,7 +58,7 @@ class OBSPkgManager(object):
             shutil.rmtree(self.work_dir)
         os.makedirs(self.work_dir)
         os.chdir(self.work_dir)
-    
+ 
     def _git_clone(self, git_house):
         """
         git clone function
@@ -76,61 +76,51 @@ class OBSPkgManager(object):
             ret = os.popen("git lfs --depth 1 clone %s" % git_url).read()
             log.debug(ret)
         os.chdir(self.work_dir)
-    
+ 
     def _add_pkg(self, proj, pkg, branch_name):
         """
         add project package
         """
-        os.chdir(self.work_dir)
-        if os.path.exists(proj):
-            shutil.rmtree(proj)
-        if os.system("osc ls %s %s &>/dev/null" % (proj, pkg)) == 0:
-            if os.system("osc co %s %s &>/dev/null" % (proj, pkg)) == 0:
-                log.info("osc co %s %s success!" % (proj, pkg))
-            else:
-                log.info("osc co %s %s failed!" % (proj, pkg))
-        else:
-            if os.system("osc co %s `osc ls %s | sed -n '1p'` &>/dev/null" % (proj, proj)) == 0:
-                log.info("osc co %s success!" % proj)
-            else:
-                log.info("osc co %s failed!" % proj)
-        pkg_path = os.path.join(self.obs_meta_path, self.parent_dir, '%s/%s/%s' % (branch_name, proj, pkg))
-        if os.path.exists(proj):
-            os.chdir(proj)
-        else:
-            log.info("add %s %s failed!" % (proj, pkg))
+        pkg_path = os.path.join(self.obs_meta_path, self.multi_version_dir, branch_name, proj, pkg)
+        _tmpdir = os.popen("mktemp -d").read().strip('\n')
+        cmd = "cd %s && osc co %s `osc ls %s 2>/dev/null | sed -n '1p'` &>/dev/null && cd -" % (_tmpdir, proj, proj)
+        ret = os.popen(cmd).read()
+        proj_tmpdir = os.path.join(_tmpdir, proj)
+        if not os.path.exists(proj_tmpdir):
+            log.error("failed to exec cmd: %s" % (cmd))
+            shutil.rmtree(_tmpdir)
             return -1
-        if os.path.exists(pkg):
-            os.system("cp -rf %s ." % pkg_path)
-            cmd = "osc status | grep ^? | awk '{print 2}'"
+        pkg_tmpdir = os.path.join(proj_tmpdir, pkg)
+        if os.path.exists(pkg_tmpdir):
+            ret = os.system("cp -rf %s %s" % (pkg_path, proj_tmpdir))
+            cmd = "cd %s && osc status | grep ^? | awk '{print 2}' && cd -" % proj_tmpdir
             new_file = os.popen(cmd).read()
             if len(new_file):
-                os.system("osc add %s" % new_file)
+                ret = os.system("cd %s && osc add %s && cd -" % (proj_tmpdir, new_file))
         else:
-            os.system("cp -rf %s ." % pkg_path)
-            rm_dir = os.path.join('%s/.osc' % pkg)
-            if os.path.exists(rm_dir):
-                os.system("rm -rf %s" % rm_dir)
-            os.system("osc add %s" % pkg)
-        new_file = os.popen("osc status").read()
+            rm_dir = os.path.join(pkg_tmpdir, ".osc")
+            cmd = "cp -rf %s %s && rm -rf %s && cd %s && osc add %s && cd -" % (pkg_path, 
+                    proj_tmpdir, rm_dir, proj_tmpdir, pkg)
+            ret = os.popen(cmd).read()
+        new_file = os.popen("cd %s && osc status && cd -" % (proj_tmpdir)).read()
         if len(new_file):
-            os.system("osc ci -m 'add %s by %s'" % (pkg, self.giteeUserName))
-            log.info("add %s %s by %s" % (proj, pkg, self.giteeUserName))
-        os.chdir(self.work_dir)
-    
+            ret = os.system("cd %s && osc ci -m 'add %s by %s' && cd -" % (proj_tmpdir, pkg, self.giteeUserName))
+            log.info("add %s %s by %s succeessful" % (proj, pkg, self.giteeUserName))
+        shutil.rmtree(_tmpdir)
+ 
     def _add_pkg_service(self, proj, pkg, branch_name):
         """
         write and push _service file in obs_meta
         return 0 or -1
         """
-        proj_path = os.path.join(self.obs_meta_path, self.parent_dir, branch_name, proj)
+        proj_path = os.path.join(self.obs_meta_path, self.multi_version_dir, branch_name, proj)
         service_file = os.path.join(proj_path, pkg, "_service")
         if not os.path.exists(proj_path):
-            log.warning("obs_meta do not have %s %s %s" % (self.parent_dir, branch_name, proj))
+            log.warning("obs_meta do not have %s %s %s" % (self.multi_version_dir, branch_name, proj))
             return -1
         if os.system("test -f %s" % service_file) == 0:
             log.warning("obs_meta haved %s %s %s %s _service file, no need to add."
-                    % (self.parent_dir, branch_name, proj, pkg))
+                    % (self.multi_version_dir, branch_name, proj, pkg))
             return -1
         os.chdir(proj_path)
         if not os.path.exists(pkg):
@@ -142,14 +132,14 @@ class OBSPkgManager(object):
         f.write('      <param name="scm">repo</param>\n')
         if branch_name == "master":
             f.write('      <param name="url">next/openEuler/%s</param>\n' % pkg)
-        if self.parent_dir == "":
+        if self.multi_version_dir == "":
             f.write('      <param name="url">next/%s/%s</param>\n' % (branch_name, pkg))
         else:
-            f.write('      <param name="url">next/%s/%s/%s</param>\n' % (self.parent_dir, branch_name, pkg))
+            f.write('      <param name="url">next/%s/%s/%s</param>\n' % (self.multi_version_dir, branch_name, pkg))
         f.write('    </service>\n')
         f.write('</services>\n')
         f.close()
-        os.chdir("%s/%s/%s/%s" % (self.obs_meta_path, self.parent_dir, branch_name, proj))
+        os.chdir("%s/%s/%s/%s" % (self.obs_meta_path, self.multi_version_dir, branch_name, proj))
         os.system("git add %s" % pkg)
         os.system("git commit -m 'add _service file by %s'" % self.giteeUserName)
         log.info("add %s %s _service file by %s" % (proj, pkg, self.giteeUserName))
@@ -157,118 +147,96 @@ class OBSPkgManager(object):
             if os.system("git push") == 0:
                 break
         return 0
-    
+ 
     def _del_pkg(self, proj, pkg):
         """
         delete the project package
         return 0 or -1
         """
-        os.chdir(self.work_dir)
-        proj_path = os.path.join(self.work_dir, proj)
-        if os.system("osc ls %s %s &>/dev/null" % (proj, pkg)) == 0:
-            if os.path.exists(proj_path):
-                shutil.rmtree(proj)
-            if os.system("osc co %s %s &>/dev/null" % (proj, pkg)) == 0:
-                os.chdir(proj)
-                os.system("osc rm %s" % pkg)
-                os.system("osc ci -m 'delete by %s'" % self.giteeUserName)
-                log.info("delete %s %s by %s" % (proj, pkg, self.giteeUserName))
-            else:
-                log.info("delete %s %s failed!" % (proj, pkg))
-                return -1
+        cmd = "osc api -X DELETE /source/%s/%s" % (proj, pkg)
+        ret = os.popen(cmd).read()
+        if "<summary>Ok</summary>" in ret:
+            log.info("delete %s %s success!" % (proj, pkg))
+            return 0
         else:
-            log.warning("obs %s %s not found" % (proj, pkg))
+            log.error("delete %s %s failed!" % (proj, pkg))
             return -1
-        os.chdir(self.work_dir)
-        return 0
-    
+ 
     def _del_obs_pkg_service(self, proj, pkg):
         """
         delete the obs project package service file
         return 0 or -1
         """
-        if os.system("osc ls %s %s &>/dev/null" % (proj, pkg)) != 0:
-            log.warning("obs %s %s not found" % (proj, pkg))
-            return -1
-        os.chdir(self.work_dir)
-        proj_path = os.path.join(self.work_dir, proj)
-        pkg_path = os.path.join(proj_path, pkg)
-        if os.path.exists(proj_path):
-            shutil.rmtree(proj)
-        if os.system("osc co %s %s &>/dev/null" % (proj, pkg)) == 0:
-            os.chdir(pkg_path)
-            os.system("test -f _service && osc rm _service")
-            os.system("osc ci -m 'delete _service by %s'" % self.giteeUserName)
-            log.info("delete obs %s %s _service by %s" % (proj, pkg, self.giteeUserName))
+        cmd = "osc api -X DELETE /source/%s/%s/_service" % (proj, pkg)
+        ret = os.popen(cmd).read()
+        if "<summary>Ok</summary>" in ret:
+            log.info("delete %s %s _service by %s successful!" % (proj, pkg, self.giteeUserName))
+            return 0
         else:
-            log.info("delete %s %s _service failed!" % (proj, pkg))
+            log.error("delete %s %s _service failed!" % (proj, pkg))
             return -1
-        os.chdir(self.work_dir)
-        return 0
-    
+ 
     def _del_meta_pkg_service(self, branch, proj, pkg):
         """
         delete the obs_meta project pkg service file
         return 0 or -1
         """
-        proj_path = os.path.join(self.obs_meta_path, self.parent_dir, branch, proj)
+        proj_path = os.path.join(self.obs_meta_path, self.multi_version_dir, branch, proj)
         service_file = os.path.join(proj_path, pkg, "_service")
         if os.system("test -f %s" % service_file) != 0:
-            log.warning("obs_meta not have %s %s %s %s _service file" % (self.parent_dir, branch, proj, pkg))
+            log.warning("obs_meta not have %s %s %s %s _service file" % (self.multi_version_dir, branch, proj, pkg))
             return -1
         os.chdir(proj_path)
         os.system("rm -rf %s" % pkg)
         os.system("git add -A && git commit -m 'delete %s by %s'" % (pkg, self.giteeUserName))
-        log.info("delete obs_meta %s %s %s %s by %s" % (self.parent_dir, branch, proj, pkg, self.giteeUserName))
+        log.info("delete obs_meta %s %s %s %s by %s" % (self.multi_version_dir, branch, proj, pkg, self.giteeUserName))
         for i in range(5):
             if os.system("git push") == 0:
                 break
         os.chdir(self.work_dir)
         return 0
-    
+ 
     def _modify_pkg_service(self, proj, pkg, branch_name):
         """
         change the service file for the package
         return 0 or -1
         """
-        if os.system("osc ls %s %s &>/dev/null" % (proj, pkg)) != 0:
-            log.warning("%s %s not found" % (proj, pkg))
-            return -1
-        os.chdir(self.work_dir)
-        proj_path = os.path.join(self.work_dir, proj)
-        pkg_path = os.path.join(proj_path, pkg)
-        service_file_path = os.path.join(self.obs_meta_path, self.parent_dir, "%s/%s/%s/_service"
-                % (branch_name, proj, pkg))
-        if os.path.exists(proj_path):
-            shutil.rmtree(proj)
-        if os.system("osc co %s %s &>/dev/null" % (proj, pkg)) == 0:
-            os.system("cp -f %s %s" % (service_file_path, pkg_path))
-            os.chdir(pkg_path)
-            os.system("osc add _service")
-            os.system("osc ci -m 'modify by %s'" % self.giteeUserName)
+        service_file_path = os.path.join(self.obs_meta_path, self.multi_version_dir, 
+                branch_name, proj, pkg, "_service")
+        _tmpdir = os.popen("mktemp -d").read().strip('\n')
+        pkg_tmpdir = os.path.join(_tmpdir, proj, pkg)
+        cmd = "cd %s && osc co %s %s &>/dev/null && cd -" % (_tmpdir, proj, pkg)
+        if os.system(cmd) == 0:
+            cmd = "cd %s && cp -f %s %s && osc add _service && osc ci -m 'modify by %s' && cd -" \
+                    % (pkg_tmpdir, service_file_path, pkg_tmpdir, self.giteeUserName)
+            if os.system(cmd) == 0:
+                log.info("modify %s %s _service success!" % (proj, pkg))
+                shutil.rmtree(_tmpdir)
+                return 0
+            else:
+                log.error("modify %s %s _service failed!" % (proj, pkg))
+                shutil.rmtree(_tmpdir)
+                return -1
         else:
-            log.info("modify %s %s _service failed!" % (proj, pkg))
+            log.warning("%s %s not found" % (proj, pkg))
+            shutil.rmtree(_tmpdir)
             return -1
-        os.chdir(self.work_dir)
-        return 0
-    
+ 
     def _modify_pkg_meta(self, proj, pkg, branch_name):
         """
         change the package of the meta
         return 0 or -1
         """
-        if os.system("osc ls %s %s &>/dev/null" % (proj, pkg)) != 0:
-            log.warning("%s %s not found" % (proj, pkg))
-            return -1
-        os.chdir(self.work_dir)
-        file_path = os.path.join(self.obs_meta_path, self.parent_dir, "%s/%s/%s/.osc/_meta"
-                % (branch_name, proj, pkg))
-        cmd = "osc meta pkg %s %s --file=%s | grep ^Done." % (proj, pkg, file_path)
+        file_path = os.path.join(self.obs_meta_path, self.multi_version_dir, 
+                branch_name, proj, pkg, ".osc/_meta")
+        _tmpdir = os.popen("mktemp -d").read().strip('\n')
+        cmd = "cd %s && osc meta pkg %s %s --file=%s | grep ^Done. && cd -" % (_tmpdir, proj, pkg, file_path)
         if os.system(cmd) != 0:
-            log.error("%s/%s/.osc/_meta deal error" % (proj, pkg))
+            log.error("modify %s %s _meta failed!" % (proj, pkg))
+            shutil.rmtree(_tmpdir)
             return -1
-        return 0
-    
+        shutil.rmtree(_tmpdir)
+ 
     def _change_pkg_prj(self, proj, new_proj, pkg, branch_name):
         """
         change the package of the project
@@ -295,7 +263,7 @@ class OBSPkgManager(object):
         log.info("line:%s" % line)
         new_proj = ''
         new_file_path = ''
-        parent_dir = ''
+        multi_version_dir = ''
         log_list = list(line.split())
         temp_log_type = log_list[0]
         file_path = log_list[1]
@@ -303,7 +271,7 @@ class OBSPkgManager(object):
             new_file_path = list(line.split())[2]
         tmp_str = str(file_path).split('/')
         if len(tmp_str) == 5:
-            parent_dir, branch_name, proj, pkg, file_name = tmp_str
+            multi_version_dir, branch_name, proj, pkg, file_name = tmp_str
         else:
             branch_name, proj, pkg, file_name = str(file_path).split('/')
         if len(new_file_path) != 0:
@@ -322,7 +290,7 @@ class OBSPkgManager(object):
             if temp_log_type == "A":
                 log_type = "Add-pkg"
             elif temp_log_type == "D":
-                pkg_path = os.path.join(self.obs_meta_path, parent_dir, '%s/%s/%s' % (branch_name, proj, pkg))
+                pkg_path = os.path.join(self.obs_meta_path, multi_version_dir, '%s/%s/%s' % (branch_name, proj, pkg))
                 if os.path.exists(pkg_path):
                     log_type = "Del-pkg-service"
                 else:
@@ -336,41 +304,82 @@ class OBSPkgManager(object):
                 log.error("%s failed" % line)
         else:
             log.error("%s failed" % line)
-        mesg_list = [log_type, branch_name, proj, pkg, new_proj, parent_dir]  
+        mesg_list = [log_type, branch_name, proj, pkg, new_proj, multi_version_dir]  
         return mesg_list
-    
-    def _deal_some_param(self):
+   
+    def _obs_pkgs_action(self):
+        """
+        operate on packages
+        """
+        file_content = []
+        data = open(self.patch_file_path, 'r')
+        for line in data:
+            file_content.append(line.strip('\n'))
+        data.close()
+        with ThreadPoolExecutor(10) as executor:
+            for content in file_content:
+                executor.submit(self._obs_pkg_action, content)
+        
+    def _obs_pkg_action(self, file_content):
+        """
+        operate on a package
+        file_content: a line of the patch
+        """
+        msg = self._deal_some_param(file_content)
+        self._action_type(msg)
+
+    def _action_type(self, msg):
+        """
+        operate on the package according to the log_type
+        """
+        self.multi_version_dir = msg["multi_version_dir"]
+        if msg["log_type"] == "Add-pkg":
+            if msg["exist_flag"] == 0:
+                ret = self._add_pkg(msg["proj"], msg["pkg"], msg["branch_name"])
+                if self.sync_code and ret != -1:
+                    self._sync_pkg_code(msg["proj"], msg["pkg"], msg["branch_name"])
+        elif msg["log_type"] == "Del-pkg":
+            self._del_pkg(msg["proj"], msg["pkg"])
+        elif msg["log_type"] == "Del-pkg-service":
+            self._del_obs_pkg_service(msg["proj"], msg["pkg"])
+        elif msg["log_type"] == "Mod-pkg-service":
+            self._modify_pkg_service(msg["proj"], msg["pkg"], msg["branch_name"])
+        elif msg["log_type"] == "Mod-pkg-meta":
+            self._modify_pkg_meta(msg["proj"], msg["pkg"], msg["branch_name"])
+        elif msg["log_type"] == "Change-pkg-prj":
+            self._change_pkg_prj(msg["proj"], msg["new_proj"], msg["pkg"], msg["branch_name"])
+            if self.sync_code:
+                self._sync_pkg_code(msg["new_proj"], msg["pkg"], msg["branch_name"])
+
+    def _deal_some_param(self, file_content):
         """
         deal with some data and relation
+        return a dict
         """
         pattern_string = ['.meta', '.prjconf', '/_service', '/_meta']
         proj_list = os.listdir(os.path.join(self.obs_meta_path, "master"))
         proj_list.remove("openEuler:Mainline:RISC-V")
         for pattern in pattern_string:
-            data = open(self.patch_file_path, 'r')
-            for line in data:
-                cmd1 = 'echo "%s" | grep "%s$"' % (line.strip(), pattern)
-                if os.popen(cmd1).read():
-                    tmp = {}
-                    line = line.strip('\n')
-                    log_type, branch_name, proj, pkg, new_proj, parent_dir = self._parse_git_log(line)
-                    tmp["log_type"] = log_type
-                    tmp["branch_name"] = branch_name
-                    tmp["proj"] = proj
-                    tmp["pkg"] = pkg
-                    tmp["new_proj"] = new_proj
-                    tmp["exist_flag"] = 0
-                    tmp["parent_dir"] = parent_dir
-                    for p in proj_list:
-                        cmd3 = "osc ls %s 2>&1 | grep -q -Fx %s" % (p, pkg)
-                        if os.system(cmd3) == 0:
-                            if p == proj:
-                                log.info("package %s hava existed in obs project %s" % (pkg, p))
-                                tmp["exist_flag"] = 1
-                    self.import_list.append(tmp)
-                else:
-                    continue
-            data.close()
+            cmd = 'echo "%s" | grep "%s$"' % (file_content.strip(), pattern)
+            if os.popen(cmd).read():
+                tmp = {}
+                log_type, branch_name, proj, pkg, new_proj, multi_version_dir = self._parse_git_log(file_content)
+                tmp["log_type"] = log_type
+                tmp["branch_name"] = branch_name
+                tmp["proj"] = proj
+                tmp["pkg"] = pkg
+                tmp["new_proj"] = new_proj
+                tmp["exist_flag"] = 0
+                tmp["multi_version_dir"] = multi_version_dir
+                for p in proj_list:
+                    cmd = "osc ls %s 2>&1 | grep -q -Fx %s" % (p, pkg)
+                    if os.system(cmd) == 0:
+                        if p == proj:
+                            log.info("package %s hava existed in obs project %s" % (pkg, p))
+                            tmp["exist_flag"] = 1
+                return tmp
+            else:
+                continue
 
     def obs_pkg_admc(self):
         """
@@ -383,28 +392,7 @@ class OBSPkgManager(object):
             self._check_obs_meta_pkg()
         self._pre_env()
         self._git_clone("obs_meta")
-        self._deal_some_param()
-        log.info(self.import_list)
-        for msg in self.import_list:
-            self.parent_dir = msg["parent_dir"]
-            if msg["log_type"] == "Add-pkg":
-                if msg["exist_flag"] == 0:
-                    ret = self._add_pkg(msg["proj"], msg["pkg"], msg["branch_name"])
-                    if self.sync_code and ret != -1:
-                        self._sync_pkg_code(msg["proj"], msg["pkg"], msg["branch_name"])
-            elif msg["log_type"] == "Del-pkg":
-                self._del_pkg(msg["proj"], msg["pkg"])
-            elif msg["log_type"] == "Del-pkg-service":
-                self._del_obs_pkg_service(msg["proj"], msg["pkg"])
-            elif msg["log_type"] == "Mod-pkg-service":
-                self._modify_pkg_service(msg["proj"], msg["pkg"], msg["branch_name"])
-            elif msg["log_type"] == "Mod-pkg-meta":
-                self._modify_pkg_meta(msg["proj"], msg["pkg"], msg["branch_name"])
-            elif msg["log_type"] == "Change-pkg-prj":
-                self._change_pkg_prj(msg["proj"], msg["new_proj"], msg["pkg"], msg["branch_name"])
-                if self.sync_code:
-                    self._sync_pkg_code(msg["new_proj"], msg["pkg"], msg["branch_name"])
-        return 0
+        self._obs_pkgs_action()
 
     def _parse_yaml_data(self):
         """
