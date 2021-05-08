@@ -1,2 +1,4 @@
 v1.2.6:
 support multi_version
+v1.2.7:
+use multithreading to manipulate packages and add Rename-pkg-name type 
