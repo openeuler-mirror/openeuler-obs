@@ -262,6 +262,7 @@ class OBSPkgManager(object):
         """
         log.info("line:%s" % line)
         new_proj = ''
+        new_pkg = ''
         new_file_path = ''
         multi_version_dir = ''
         log_list = list(line.split())
@@ -269,18 +270,23 @@ class OBSPkgManager(object):
         file_path = log_list[1]
         if len(log_list) == 3:
             new_file_path = list(line.split())[2]
+            tmp_str2 = str(new_file_path).split('/')
+            if len(tmp_str2) == 5:
+                new_proj = tmp_str2[2]
+                new_pkg = tmp_str2[3]
+            else:
+                new_proj = tmp_str2[1]
+                new_pkg = tmp_str2[2]
         tmp_str = str(file_path).split('/')
         if len(tmp_str) == 5:
             multi_version_dir, branch_name, proj, pkg, file_name = tmp_str
         else:
-            branch_name, proj, pkg, file_name = str(file_path).split('/')
+            branch_name, proj, pkg, file_name = tmp_str
         if len(new_file_path) != 0:
-            new_file_path_list = new_file_path.split('/')
-            if len(new_file_path_list) == 5:
-                new_proj = new_file_path_list[2]
+            if new_pkg != pkg:
+                log_type = "Rename-pkg-name"
             else:
-                new_proj = new_file_path_list[1]
-            log_type = "Change-pkg-prj"
+                log_type = "Change-pkg-prj"
         elif file_name == "_meta":
             if temp_log_type == "A" or temp_log_type == "M":
                 log_type = "Mod-pkg-meta"
@@ -304,7 +310,7 @@ class OBSPkgManager(object):
                 log.error("%s failed" % line)
         else:
             log.error("%s failed" % line)
-        mesg_list = [log_type, branch_name, proj, pkg, new_proj, multi_version_dir]  
+        mesg_list = [log_type, branch_name, proj, pkg, new_proj, new_pkg, multi_version_dir]
         return mesg_list
    
     def _obs_pkgs_action(self):
@@ -350,6 +356,11 @@ class OBSPkgManager(object):
             self._change_pkg_prj(msg["proj"], msg["new_proj"], msg["pkg"], msg["branch_name"])
             if self.sync_code:
                 self._sync_pkg_code(msg["new_proj"], msg["pkg"], msg["branch_name"])
+        elif msg["log_type"] == "Rename-pkg-name":
+            self._del_pkg(msg["proj"], msg["pkg"])
+            ret = self._add_pkg(msg["new_proj"], msg["new_pkg"], msg["branch_name"])
+            if self.sync_code and ret != -1:
+                self._sync_pkg_code(msg["new_proj"], msg["new_pkg"], msg["branch_name"])
 
     def _deal_some_param(self, file_content):
         """
@@ -363,12 +374,14 @@ class OBSPkgManager(object):
             cmd = 'echo "%s" | grep "%s$"' % (file_content.strip(), pattern)
             if os.popen(cmd).read():
                 tmp = {}
-                log_type, branch_name, proj, pkg, new_proj, multi_version_dir = self._parse_git_log(file_content)
+                log_type, branch_name, proj, pkg, new_proj, new_pkg, \
+                        multi_version_dir = self._parse_git_log(file_content)
                 tmp["log_type"] = log_type
                 tmp["branch_name"] = branch_name
                 tmp["proj"] = proj
                 tmp["pkg"] = pkg
                 tmp["new_proj"] = new_proj
+                tmp["new_pkg"] = new_pkg
                 tmp["exist_flag"] = 0
                 tmp["multi_version_dir"] = multi_version_dir
                 for p in proj_list:
