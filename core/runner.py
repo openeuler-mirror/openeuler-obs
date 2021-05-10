@@ -114,11 +114,12 @@ class Runner(object):
             self._save_latest_info()
         elif self.kwargs["repository"] == "obs_meta":
             self._obs_meta_action()
-        elif self.kwargs["repository"] and self.kwargs["repository"] not in self.ignore_list:
+        elif self.kwargs["sync_gitee_to_obs"] == "true":
             if not self.update_enabled_flag[self.kwargs["branch"]]:
-                log.debug("can not update branch:%s, package: %s"
-                        % (self.kwargs["branch"], self.kwargs["repository"]))
-                self._save_unsync_info()
+                if self.kwargs["repository"] and self.kwargs["repository"] not in self.ignore_list:
+                    log.debug("can not update branch:%s, package: %s"
+                            % (self.kwargs["branch"], self.kwargs["repository"]))
+                    self._save_unsync_info()
             else:
                 self._update_package()
         elif self.kwargs["check_pkg_service"] == "true":

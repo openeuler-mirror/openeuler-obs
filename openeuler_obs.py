@@ -88,6 +88,8 @@ par.add_argument("-prid", "--pr_id", default=False,
 par.add_argument("-sc", "--sync_code", default=True,
         help="when adding package to project or changing package project, \
                 the code should be synchronized. type bool, default True", required=False)
+par.add_argument("-sgo", "--sync_gitee_to_obs", default=None,
+        help="when you want to sync not only one rpm please let this be true --sync_gitee_to_obs=true", required=False)
 
 par.add_argument("-a", "--ALL_", default=False, help="update all obs repo rpms", required=False)
 
@@ -123,7 +125,8 @@ kw = {
         "check_pkg_service": args.check_pkg_service,
         "pr_id": args.pr_id,
         "sync_code": args.sync_code,
-        "all":args.ALL_
+        "all":args.ALL_,
+        "sync_gitee_to_obs":args.sync_gitee_to_obs
         }
 
 run = Runner(**kw)
