@@ -67,6 +67,7 @@ class SYNCCode(object):
         par = ParserConfigIni()
         self.obs_pkg_rpms_url = par.get_repos_dict()["obs_pkg_rpms"]
         self.obs_pkg_prms_files_dir = None
+        self.sync_failed_rpms = []
 
     def _write_date_to_file(self):
         """
@@ -106,13 +107,14 @@ class SYNCCode(object):
             if "Already" in pull_result_last:
                 log.info(pull_result_last)
                 log.info("At now %s the branch is in %s" % (rpm_dir, gitee_branch))
-                return
+                return True
             else:
                 log.info("_GIT_CLONE: %s" % i)
                 clear_repo = self.cmd.ssh_cmd("rm -rf %s" % path)
                 log.info("clear_repo:%s" % clear_repo)
                 continue
-        raise SystemExit('Git clone error')
+        log.error("_GIT_CLONE_ERROR: %s" % rpm_dir)
+        return False
 
     def _get_obs_project(self):
         """
@@ -141,8 +143,9 @@ class SYNCCode(object):
                 self.repository, self.gitee_branch, obs_project))
             return obs_project
         else:
-            sys.exit("Failed !!! The rpm is not exist in %s branch !!!"
+            log.error("Failed !!! The rpm is not exist in %s branch !!!"
                     % self.gitee_branch)
+            return False
 
     def _get_latest_gitee_pull(self):
         """
@@ -155,7 +158,8 @@ class SYNCCode(object):
         else:
             source_path = "/srv/cache/obs/tar_scm/repo/next/" + self.gitee_branch
         if self.repository == "CreateImage":
-            sys.exit("The rpm packages does not need to be sync!!!")
+            log.error("The <<CreateImage>> packages does not need to be sync!!!")
+            return False
         elif self.repository == "kernel":
             pull_result = str(self.cmd.ssh_cmd("git -C %s/kernel pull" % source_path)
                     [1].strip()).split("'")[1]
@@ -173,9 +177,11 @@ class SYNCCode(object):
             pull_result_last = str(self.cmd.ssh_cmd('git -C %s pull' % open_kernel_path)[1].strip()).split("'")[1]
             if "Already" in pull_result_last:
                 log.info(pull_result_last)
-                log.info("kernel clone success")
+                log.info("kernel gitee pull success")
+                return True
             else:
-                raise SystemExit('Git clone error')
+                log.error("kernel gitee pull failed")
+                return False
         else:
             rpm_path = source_path + '/' + self.repository
             ssh_cmd = "if [ -d %s ];then echo 'exist';else echo 'need to clone';fi" % rpm_path
@@ -188,10 +194,13 @@ class SYNCCode(object):
                 pull_result_last = str(self.cmd.ssh_cmd('git -C %s pull' % rpm_path)[1].strip()).split("'")[1]
                 if "Already" in pull_result_last:
                     log.info(pull_result_last)
+                    return True
                 else:
-                    self._git_clone(self.repository, self.gitee_branch, rpm_path)
+                    clone_result = self._git_clone(self.repository, self.gitee_branch, rpm_path)
+                    return clone_result
             else:
-                self._git_clone(self.repository, self.gitee_branch, rpm_path)
+                clone_result = self._git_clone(self.repository, self.gitee_branch, rpm_path)
+                return clone_result
 
     def _gitee_pr_to_obs(self, obs_pro):
         """
@@ -202,53 +211,75 @@ class SYNCCode(object):
             if "ok" in str(results.strip()):
                 log.info(str(results.strip()))
                 log.info("Success for osc service remoterun the %s" % self.repository)
-                break
+                return True
             else:
                 continue
-            sys.exit("Failed !!! fail to service remoterun !!!")
+        log.error("Failed !!! fail to service remoterun !!!")
+        return False
 
-    def _pre_sync_code(self):
+    def _pre_sync_code(self, project=None):
         """
         The way to offer that make all fuction runing
         """
-        obs_project = self._get_obs_project()
-        self._get_latest_gitee_pull()
-        self._gitee_pr_to_obs(obs_project)
+        if not project:
+            obs_project = self._get_obs_project()
+        else:
+            obs_project = project
+            log.info("The %s in %s" % (self.repository, obs_project))
+        pull_result = self._get_latest_gitee_pull()
+        remoterun_result = self._gitee_pr_to_obs(obs_project)
+        if obs_project and pull_result and remoterun_result:
+            log.info("SYNC %s in %s SUCCESS" % (self.repository, obs_project))
+            return True
+        else:
+            log.error("SYNC %s in %s ERROR: Please check the log.error" % (self.repository, obs_project))
+            return False
 
     def sync_code_to_obs(self):
         """
         The only way to offer that make all fuction runing
         """
         if not self.pkgs:
-            if self.repository and not self.project:
+            if self.repository and self.gitee_branch:
                 self._write_date_to_file()
-                self._pre_sync_code()
-            elif self.repository and self.project:
-                self._write_date_to_file()
-                self._get_latest_gitee_pull()
-                self._gitee_pr_to_obs(self.project)
-            elif not self.repository and self.project:
-                cmd = "osc ls %s" % self.project
-                pkgs = os.popen(cmd).readlines()
-                log.info(pkgs)
-                for pkg in pkgs:
-                    log.info(pkg.replace('\n', ''))
-                    self.repository = pkg.replace('\n', '')
-                    if self.repository:
-                        self._write_date_to_file()
-                        self._get_latest_gitee_pull()
-                        self._gitee_pr_to_obs(self.project)
+                if not self._pre_sync_code(self.project):
+                    raise SystemExit("SYNC %s ERROR" % self.repository)
             else:
                 raise SystemExit('please check you arguments')
         else:
+            if "broken" == self.pkgs[0] and len(self.pkgs) == 1:
+                project_flag = "yes"
+                broken_cmd = "osc r --csv %s -r standard_aarch64 -a aarch64 2>/dev/null | \
+                        grep broken | awk -F ';' '{print $1}'" % self.project
+                log.info("Get the broken rpm:%s" % broken_cmd)
+                broken_result = os.popen(broken_cmd).read()
+                log.debug(broken_result)
+                broken_list = broken_result.split('\n')
+                self.pkgs = [x for x in broken_list if x != '']
+                log.info("broken_rpmlist: %s" % self.pkgs)
+                if not self.pkgs:
+                    log.info("There are no broken pkgs in %s" % self.project)
+            if "All" == self.pkgs[0] and len(self.pkgs) == 1:
+                project_flag = "yes"
+                if not self.repository and self.project:
+                    cmd = "osc ls %s 2>/dev/null" % self.project
+                    pkgs = os.popen(cmd).read().split('\n')
+                    self.pkgs = [x for x in pkgs if x != '']
+                    log.info("project_rpmlist: %s" % self.pkgs)
+                if not self.pkgs:
+                    log.info("There are no pkgs in %s" % self.project)
             for pkg in self.pkgs:
                 if "\n" in pkg:
                     self.repository = pkg.replace('\n', '')
                 else:
                     self.repository = pkg
                 self._write_date_to_file()
-                self._get_latest_gitee_pull()
-                self._gitee_pr_to_obs(self.project)
+                sync_result = self._pre_sync_code(self.project)
+                if not sync_result:
+                    self.sync_failed_rpms.append(self.repository)
+            if self.sync_failed_rpms:
+                log.error("SYNC ERROR LIST: %s" % ",".join(self.sync_failed_rpms))
+                raise SystemExit("Failed, There are some pkgs sync failure")
 
 
 class CheckCode(object):
