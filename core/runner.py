@@ -23,6 +23,7 @@ from core.save import SaveInfo
 from core.project_manager import OBSPrjManager
 from core.gitee_to_obs import SYNCCode
 from core.gitee_to_obs import CheckCode
+from core.getdate import GETDate
 from core.check_meta_service import CheckMetaPull
 from core.package_manager import OBSPkgManager
 from core.update_obs_repos import RPMManager
@@ -101,6 +102,14 @@ class Runner(object):
         check_codes = CheckCode(**self.kwargs)
         check_codes.check_all()
 
+    def _get_latest_date(self):
+        """
+        get the latest git date to obs_pkgs_rpms
+        """
+        log.debug("get latest date")
+        get_date = GETDate(**self.kwargs)
+        get_date.update_to_obs_pkg_rpms()
+
     def run(self):
         """
         run main
@@ -126,3 +135,6 @@ class Runner(object):
             print("check_pkg_service")
             check = CheckMetaPull(**self.kwargs)
             check.do_all()
+        elif self.kwargs["get_latest_date"] == "true" and self.kwargs["branch"]:
+            self._get_latest_date()
+

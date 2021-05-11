@@ -91,6 +91,9 @@ par.add_argument("-sc", "--sync_code", default=True,
 par.add_argument("-sgo", "--sync_gitee_to_obs", default=None,
         help="when you want to sync not only one rpm please let this be true --sync_gitee_to_obs=true", required=False)
 
+par.add_argument("-gld", "--get_latest_date", default=None,
+        help="get the latest git date to obs_pkg_rpms --get_latest_date=true", required=False)
+
 par.add_argument("-a", "--ALL_", default=False, help="update all obs repo rpms", required=False)
 
 args = par.parse_args()
@@ -125,8 +128,9 @@ kw = {
         "check_pkg_service": args.check_pkg_service,
         "pr_id": args.pr_id,
         "sync_code": args.sync_code,
-        "all":args.ALL_,
-        "sync_gitee_to_obs":args.sync_gitee_to_obs
+        "all": args.ALL_,
+        "sync_gitee_to_obs": args.sync_gitee_to_obs,
+        "get_latest_date": args.get_latest_date
         }
 
 run = Runner(**kw)
