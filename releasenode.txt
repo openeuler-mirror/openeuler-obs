@@ -1,4 +1,6 @@
 v1.2.6:
 support multi_version
 v1.2.7:
-use multithreading to manipulate packages and add Rename-pkg-name type 
+use multithreading to manipulate packages and add Rename-pkg-name type
+v1.2.8:
+Added the ablility to get the latest repository code time and synchronize to obs_pkg_rpms 
