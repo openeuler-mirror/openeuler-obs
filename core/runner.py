@@ -27,6 +27,7 @@ from core.getdate import GETDate
 from core.check_meta_service import CheckMetaPull
 from core.package_manager import OBSPkgManager
 from core.update_obs_repos import RPMManager
+from core.obs_mail_notice import ObsMailNotice
 import os
 
 class Runner(object):
@@ -110,6 +111,14 @@ class Runner(object):
         get_date = GETDate(**self.kwargs)
         get_date.update_to_obs_pkg_rpms()
 
+    def _mail_notice(self):
+        """
+        send mail to the package owner
+        """
+        log.debug("OBS Mail Notice")
+        mail_notice = ObsMailNotice(**self.kwargs)
+        mail_notice.notify_all_respon_person()
+
     def run(self):
         """
         run main
@@ -137,4 +146,5 @@ class Runner(object):
             check.do_all()
         elif self.kwargs["get_latest_date"] == "true" and self.kwargs["branch"]:
             self._get_latest_date()
-
+        elif self.kwargs["obs_mail_notice"] == "true":
+            self._mail_notice()
