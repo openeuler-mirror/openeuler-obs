@@ -175,10 +175,12 @@ class GETDate(object):
             push_result = subprocess.getstatusoutput(push_cmd)
             log.info(push_result)
             if "nothing to commit" in push_result[1]:
-                sys.exit("SUCCESS:All the package date in <<%s>> 
+                log.info("SUCCESS:All the package date in <<%s>> \
                         already be latest!!" % self.branch)
+                return
             elif push_result[0] == 0:
-                sys.exit("SUCCESS:Push success for latest date to obs_pkg_rpms")
+                log.info("SUCCESS:Push success for latest date to obs_pkg_rpms")
+                return
             else:
                 log.debug("Try Push to obs_pkg_rpms: %s" % i)
         raise SystemExit("Failed: Push to obs_pkg_rpms failed")
