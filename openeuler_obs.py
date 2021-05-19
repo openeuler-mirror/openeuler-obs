@@ -93,7 +93,14 @@ par.add_argument("-sgo", "--sync_gitee_to_obs", default=None,
 
 par.add_argument("-gld", "--get_latest_date", default=None,
         help="get the latest git date to obs_pkg_rpms --get_latest_date=true", required=False)
-
+par.add_argument("-omn", "--obs_mail_notice", default=False,
+        help="obs mail notice to package owner --obs_mail_notice=true", required=False)
+par.add_argument("-fa", "--from_addr", default=None,
+        help="email sender", required=False)
+par.add_argument("-fap", "--from_addr_pwd", default=None,
+        help="email sender password", required=False)
+par.add_argument("-ca", "--cc_addr", default=None,
+        help="cc's email", required=False)
 par.add_argument("-a", "--ALL_", default=False, help="update all obs repo rpms", required=False)
 
 args = par.parse_args()
@@ -130,7 +137,11 @@ kw = {
         "sync_code": args.sync_code,
         "all": args.ALL_,
         "sync_gitee_to_obs": args.sync_gitee_to_obs,
-        "get_latest_date": args.get_latest_date
+        "get_latest_date": args.get_latest_date,
+        "from_addr": args.from_addr,
+        "from_addr_pwd": args.from_addr_pwd,
+        "cc_addr": args.cc_addr,
+        "obs_mail_notice": args.obs_mail_notice
         }
 
 run = Runner(**kw)
