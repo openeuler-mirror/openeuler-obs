@@ -44,94 +44,113 @@ class ObsMailNotice(object):
         self.cc_addr = self.kwargs["cc_addr"]
         self.proj = self.kwargs["project"]
         self.failed_pkglist = []
-        self.to_addr = ""
+        self.to_addr_list = []
 
-    def send_email(self, pkg):
-        """
-        send a email
-        """
-        proj_url = "https://build.openeuler.org/project/show/%s" % self.proj
-        pkg_url = "https://build.openeuler.org/package/show/%s/%s" % (self.proj, pkg)
-        message = '''
-        <style>a{TEXT-DECORATION:none}</style>
-        <p>Hello:</p>
-        <table border=8>
-        <tr><th>OBS_PROJECT</th><th>PACKAGE</th><th>BUILD_RESULT</th></tr>
-        <tr><th><a href = "%s">%s</a></th><th><a href = "%s">%s</a></th><th>failed</th></tr>
-        </table>
-        <p>Please solve it as soon as possible.</p>
-        <p>Thanks !!!</p>
-        ''' % (proj_url, self.proj, pkg_url, pkg)
-        msg = MIMEText(message, 'html')
-        msg['Subject'] = Header("OBS Package Build Failed Notice", "utf-8")
-        msg["From"] = Header(self.from_addr)
-        msg["To"] = Header(self.to_addr)
-        msg["Cc"] = Header(self.cc_addr)
-        smtp_server = "smtp.163.com"
-        try:
-            server = smtplib.SMTP(smtp_server, 25)
-            server.login(self.from_addr, self.from_addr_pwd)
-            server.sendmail(self.from_addr, self.to_addr.split(',') + self.cc_addr.split(','), msg.as_string())
-            server.quit()
-            return 0
-        except smtplib.SMTPException as e:
-            return e
-
-    def get_proj_status(self):
+    def _get_proj_status(self, proj):
         """
         get proj build results
         """
-        cmd = "osc r --csv %s 2>/dev/null | grep failed | awk -F ';' '{print $1}'" % self.proj
+        cmd = "osc r --csv %s 2>/dev/null | grep failed | awk -F ';' '{print $1}'" % proj
         self.failed_pkglist = [x for x in os.popen(cmd).read().split('\n') if x != '']
-        log.info("%s build failed packages:%s" % (self.proj, self.failed_pkglist))
+        log.info("%s build failed packages:%s" % (proj, self.failed_pkglist))
     
-    def get_pkg_owner_email(self, pkg):
+    def _get_pkg_owner_email(self, proj, pkg):
         """
         get the email address of the package owner
         """
         log.info("Begin to get package %s owner email..." % pkg)
         _tmpdir = os.popen("mktemp -d").read().strip('\n')
-        pkg_path = os.path.join(_tmpdir, self.proj, pkg)
+        pkg_path = os.path.join(_tmpdir, proj, pkg)
         cmd = "cd %s && osc co %s %s &>/dev/null && cd %s && osc up -S &>/dev/null" % (
-                _tmpdir, self.proj, pkg, pkg_path)
+                _tmpdir, proj, pkg, pkg_path)
         if os.system(cmd) == 0:
             cmd = "cd {0} && grep -A 1 \"%changelog\" *.spec | grep \"@\" && cd -".format(
                     pkg_path)
             email = os.popen(cmd).read()
             if email:
                 try:
-                    self.to_addr = re.findall(r"<(.+?)>", email)[0]
+                    to_addr = re.findall(r"<(.+?)>", email)[0]
                 except IndexError:
-                    self.to_addr = self.cc_addr.split(',')[0]
+                    to_addr = self.cc_addr.split(',')[0]
             else:
-                self.to_addr = self.cc_addr.split(',')[0]
+                to_addr = self.cc_addr.split(',')[0]
             log.info("Get package %s email succeed!" % pkg)
             shutil.rmtree(_tmpdir)
         else:
-            log.info("osc co %s %s failed!" % (self.proj, pkg))
-            self.to_addr = self.cc_addr.split(',')[0]
+            log.info("osc co %s %s failed!" % (proj, pkg))
+            to_addr = self.cc_addr.split(',')[0]
             log.info("Get package %s email failed, will use leader email." % pkg)
             shutil.rmtree(_tmpdir)
+        if "buildteam" in to_addr:
+            to_addr = self.cc_addr.split(',')[0]
+        tmp = {"proj": proj, "pkg": pkg, "owner_email": to_addr}
+        self.to_addr_list.append(tmp)
 
-    def notify_respon_person(self, pkg):
+    def _edit_email_content(self):
         """
-        notice a package to person
+        edit email content
         """
-        self.get_pkg_owner_email(pkg)
-        ret = self.send_email(pkg)
-        if ret == 0:
-            log.info("send %s email succeed !" % pkg)
-        else:
-            log.error("send %s email failed, Error:%s" % (pkg, ret))
+        line = ""
+        for tmp in self.to_addr_list:
+            proj_url = "https://build.openeuler.org/project/show/%s" % tmp["proj"]
+            pkg_url = "https://build.openeuler.org/package/show/%s/%s" % (tmp["proj"], tmp["pkg"])
+            line = line + """
+            <tr><td><a href = "%s">%s</a></td><td><a href = "%s">%s</a></td><td>failed</td><td>%s</td></tr>
+            """ % (proj_url, tmp["proj"], pkg_url, tmp["pkg"], tmp["owner_email"])
+        message = """
+        <p>Hello:</p>
+        <style>a{TEXT-DECORATION:none}</style>
+        <table border=8>
+        <tr><th>OBS_PROJECT</th><th>PACKAGE</th><th>BUILD_RESULT</th><th>RESPONSIBLE_PERSON_EMAIL</th></tr>
+        %s
+        </table>
+        <p>Please solve it as soon as possible.</p>
+        <p>Thanks !!!</p>
+        """ % line
+        return message
 
+    def _send_email(self, message):
+        """
+        send a email
+        """
+        msg = MIMEText(message, 'html')
+        msg['Subject'] = Header("OBS Package Build Failed Notice", "utf-8")
+        msg["From"] = Header(self.from_addr)
+        to_addr = ""
+        for tmp in self.to_addr_list:
+            if not to_addr:
+                to_addr = tmp["owner_email"]
+            else:
+                if tmp["owner_email"] not in to_addr:
+                    to_addr = to_addr + "," + tmp["owner_email"]
+        msg["To"] = Header(to_addr)
+        msg["Cc"] = Header(self.cc_addr)
+        smtp_server = "smtp.163.com"
+        try:
+            server = smtplib.SMTP(smtp_server, 25)
+            server.login(self.from_addr, self.from_addr_pwd)
+            server.sendmail(self.from_addr, to_addr.split(',') + self.cc_addr.split(','), msg.as_string())
+            server.quit()
+            return 0
+        except smtplib.SMTPException as e:
+            return e
+    
     def notify_all_respon_person(self):
         """
         notice all packages to person
         """
-        self.get_proj_status()
-        with ThreadPoolExecutor(10) as executor:
-            for pkg in self.failed_pkglist:
-                executor.submit(self.notify_respon_person, pkg)
+        for proj in self.proj.split(','):
+            self._get_proj_status(proj)
+            if self.failed_pkglist:
+                with ThreadPoolExecutor(10) as executor:
+                    for pkg in self.failed_pkglist:
+                        executor.submit(self._get_pkg_owner_email, proj, pkg)
+        message = self._edit_email_content()
+        ret = self._send_email(message)
+        if ret == 0:
+            log.info("send email succeed !")
+        else:
+            log.error("send email failed, Error:%s" % ret)
 
 
 if __name__ == "__main__":
