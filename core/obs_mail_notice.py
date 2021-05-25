@@ -46,15 +46,15 @@ class ObsMailNotice(object):
         self.failed_pkglist = []
         self.to_addr_list = []
 
-    def _get_proj_status(self, proj):
+    def _get_proj_status(self, proj, status):
         """
         get proj build results
         """
-        cmd = "osc r --csv %s 2>/dev/null | grep failed | awk -F ';' '{print $1}'" % proj
+        cmd = "osc r --csv %s 2>/dev/null | grep %s | awk -F ';' '{print $1}'" % (proj, status)
         self.failed_pkglist = [x for x in os.popen(cmd).read().split('\n') if x != '']
-        log.info("%s build failed packages:%s" % (proj, self.failed_pkglist))
+        log.info("%s build %s packages:%s" % (proj, status, self.failed_pkglist))
     
-    def _get_pkg_owner_email(self, proj, pkg):
+    def _get_pkg_owner_email(self, proj, pkg, status):
         """
         get the email address of the package owner
         """
@@ -83,7 +83,7 @@ class ObsMailNotice(object):
             shutil.rmtree(_tmpdir)
         if "buildteam" in to_addr:
             to_addr = self.cc_addr.split(',')[0]
-        tmp = {"proj": proj, "pkg": pkg, "owner_email": to_addr}
+        tmp = {"proj": proj, "pkg": pkg, "owner_email": to_addr, "status": status}
         self.to_addr_list.append(tmp)
 
     def _edit_email_content(self):
@@ -95,8 +95,8 @@ class ObsMailNotice(object):
             proj_url = "https://build.openeuler.org/project/show/%s" % tmp["proj"]
             pkg_url = "https://build.openeuler.org/package/show/%s/%s" % (tmp["proj"], tmp["pkg"])
             line = line + """
-            <tr><td><a href = "%s">%s</a></td><td><a href = "%s">%s</a></td><td>failed</td><td>%s</td></tr>
-            """ % (proj_url, tmp["proj"], pkg_url, tmp["pkg"], tmp["owner_email"])
+            <tr><td><a href = "%s">%s</a></td><td><a href = "%s">%s</a></td><td>%s</td><td>%s</td></tr>
+            """ % (proj_url, tmp["proj"], pkg_url, tmp["pkg"], tmp["status"], tmp["owner_email"])
         message = """
         <p>Hello:</p>
         <style>a{TEXT-DECORATION:none}</style>
@@ -105,7 +105,7 @@ class ObsMailNotice(object):
         %s
         </table>
         <p>Please solve it as soon as possible.</p>
-        <p>Thanks !!!</p>
+        <p>Thanks ~^v^~ !!!</p>
         """ % line
         return message
 
@@ -114,7 +114,7 @@ class ObsMailNotice(object):
         send a email
         """
         msg = MIMEText(message, 'html')
-        msg['Subject'] = Header("OBS Package Build Failed Notice", "utf-8")
+        msg['Subject'] = Header("[OBS Package Build Failed Notice]", "utf-8")
         msg["From"] = Header(self.from_addr)
         to_addr = ""
         for tmp in self.to_addr_list:
@@ -127,7 +127,7 @@ class ObsMailNotice(object):
         msg["Cc"] = Header(self.cc_addr)
         smtp_server = "smtp.163.com"
         try:
-            server = smtplib.SMTP(smtp_server, 25)
+            server = smtplib.SMTP_SSL(smtp_server)
             server.login(self.from_addr, self.from_addr_pwd)
             server.sendmail(self.from_addr, to_addr.split(',') + self.cc_addr.split(','), msg.as_string())
             server.quit()
@@ -139,12 +139,14 @@ class ObsMailNotice(object):
         """
         notice all packages to person
         """
-        for proj in self.proj.split(','):
-            self._get_proj_status(proj)
-            if self.failed_pkglist:
-                with ThreadPoolExecutor(10) as executor:
-                    for pkg in self.failed_pkglist:
-                        executor.submit(self._get_pkg_owner_email, proj, pkg)
+        status_list = ["failed", "unresolvable"]
+        for status in status_list:
+            for proj in self.proj.split(','):
+                self._get_proj_status(proj, status)
+                if self.failed_pkglist:
+                    with ThreadPoolExecutor(10) as executor:
+                        for pkg in self.failed_pkglist:
+                            executor.submit(self._get_pkg_owner_email, proj, pkg, status)
         message = self._edit_email_content()
         ret = self._send_email(message)
         if ret == 0:
