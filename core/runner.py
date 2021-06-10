@@ -28,6 +28,7 @@ from core.check_meta_service import CheckMetaPull
 from core.package_manager import OBSPkgManager
 from core.update_obs_repos import RPMManager
 from core.obs_mail_notice import ObsMailNotice
+from core.sync_pckg_mgmt import SyncPckgMgmt
 import os
 
 class Runner(object):
@@ -119,6 +120,14 @@ class Runner(object):
         mail_notice = ObsMailNotice(**self.kwargs)
         mail_notice.notify_all_respon_person()
 
+    def _pckg_mgmt(self):
+        """
+        sync obs_meta according to the pckg-mgmt.yaml
+        """
+        log.debug("Sync Pckg Mgmt")
+        mgmt = SyncPckgMgmt(**self.kwargs)
+        mgmt.sync_yaml_meta()
+
     def run(self):
         """
         run main
@@ -148,3 +157,5 @@ class Runner(object):
             self._get_latest_date()
         elif self.kwargs["obs_mail_notice"] == "true":
             self._mail_notice()
+        elif self.kwargs["pckg_mgmt"] == "true":
+            self._pckg_mgmt()

@@ -101,6 +101,8 @@ par.add_argument("-fap", "--from_addr_pwd", default=None,
         help="email sender password", required=False)
 par.add_argument("-ca", "--cc_addr", default=None,
         help="cc's email", required=False)
+par.add_argument("-pm", "--pckg_mgmt", default=False,
+        help="synchronize the obs_meta file according to the pckg-mgmt.yaml file", required=False)
 par.add_argument("-a", "--ALL_", default=False, help="update all obs repo rpms", required=False)
 
 args = par.parse_args()
@@ -141,7 +143,8 @@ kw = {
         "from_addr": args.from_addr,
         "from_addr_pwd": args.from_addr_pwd,
         "cc_addr": args.cc_addr,
-        "obs_mail_notice": args.obs_mail_notice
+        "obs_mail_notice": args.obs_mail_notice,
+        "pckg_mgmt": args.pckg_mgmt
         }
 
 run = Runner(**kw)
