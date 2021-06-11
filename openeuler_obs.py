@@ -83,6 +83,8 @@ par.add_argument("-cc", "--check_codes", default=False,
         help="check codes same or not between gitee and obs,should be with -b and -p", required=False)
 par.add_argument("-cps", "--check_pkg_service", default=False,
         help="check if there are any problems with the content of the _service file in the rpm package", required=False)
+par.add_argument("-at", "--access_token", default=False,
+        help="gitee access_token number used for api get", required=False)
 par.add_argument("-prid", "--pr_id", default=False,
         help="use the pr_id to get this pullrequest", required=False)
 par.add_argument("-sc", "--sync_code", default=True,
@@ -133,6 +135,7 @@ kw = {
         "latest_info": args.latest_info,
         "check_codes": args.check_codes,
         "check_pkg_service": args.check_pkg_service,
+        "access_token": args.access_token,
         "pr_id": args.pr_id,
         "sync_code": args.sync_code,
         "all": args.ALL_,
