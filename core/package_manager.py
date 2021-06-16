@@ -25,6 +25,7 @@ import yaml
 import shutil
 import configparser
 from concurrent.futures import ThreadPoolExecutor
+from collections import Counter
 from core.gitee_to_obs import SYNCCode
 current_path = os.path.join(os.path.split(os.path.realpath(__file__))[0])
 sys.path.append(os.path.join(current_path, ".."))
@@ -42,40 +43,32 @@ class OBSPkgManager(object):
         kwargs: dict include giteeUserName giteeUserPwd obs_meta_path
         """
         self.kwargs = kwargs
-        self.work_dir = "/jenkins_home/workspace/obs_meta_update/openeuler_jenkins"
-        self.obs_meta_path = os.path.join(self.work_dir, self.kwargs["obs_meta_path"])
-        self.patch_file_path = os.path.join(self.work_dir, "diff_patch")
+        self.init_path = self.kwargs["init_path"]
+        self.obs_meta_path = self.kwargs["obs_meta_path"]
+        self.patch_file_path = os.path.join(self.init_path, "diff_patch")
         self.giteeUserName = self.kwargs["gitee_user"]
         self.giteeUserPwd = self.kwargs["gitee_pwd"]
         self.sync_code = self.kwargs["sync_code"]
         self.multi_version_dir = ''
+        os.chdir(self.init_path)
+        p = ParserConfigIni()
+        self.branch_proj_dict = p.get_branch_proj()
 
-    def _pre_env(self):
-        """
-        initialize the workdir
-        """
-        if os.path.exists(self.work_dir):
-            shutil.rmtree(self.work_dir)
-        os.makedirs(self.work_dir)
-        os.chdir(self.work_dir)
- 
     def _git_clone(self, git_house):
         """
         git clone function
         """
         if git_house == "obs_meta":
-            os.chdir(self.obs_meta_path)
-            os.system("git diff --name-status HEAD~1 HEAD~0 > %s"
-                        % self.patch_file_path)
+            os.system("cd %s && git diff --name-status HEAD~1 HEAD~0 > %s && cd -"
+                        % (self.obs_meta_path, self.patch_file_path))
         if git_house == "community":
-            community_path = os.path.join(self.work_dir, "community")
+            community_path = os.path.join(self.init_path, "community")
             if os.path.exists(community_path):
                 shutil.rmtree(community_path)
             git_url = "https://%s:%s@gitee.com/openeuler/community.git" % (
                        self.giteeUserName, self.giteeUserPwd)
-            ret = os.popen("git lfs --depth 1 clone %s" % git_url).read()
+            ret = os.popen("git lfs --depth 1 clone %s %s" % (git_url, community_path)).read()
             log.debug(ret)
-        os.chdir(self.work_dir)
  
     def _add_pkg(self, proj, pkg, branch_name):
         """
@@ -193,7 +186,7 @@ class OBSPkgManager(object):
         for i in range(5):
             if os.system("git push") == 0:
                 break
-        os.chdir(self.work_dir)
+        os.chdir(self.init_path)
         return 0
  
     def _modify_pkg_service(self, proj, pkg, branch_name):
@@ -403,7 +396,6 @@ class OBSPkgManager(object):
             self._check_obs_pkg()
         if self.kwargs["check_meta"]:
             self._check_obs_meta_pkg()
-        self._pre_env()
         self._git_clone("obs_meta")
         self._obs_pkgs_action()
 
@@ -412,9 +404,8 @@ class OBSPkgManager(object):
         Preprocessing the data
         """
         yaml_dict = {}
-        os.chdir(self.work_dir)
-        yaml_path = os.path.join(self.work_dir, "community/repository")
-        f1 = open("%s/src-openeuler.yaml" % yaml_path, 'r')
+        yaml_path = os.path.join(self.init_path, "community/repository/src-openeuler.yaml")
+        f1 = open(yaml_path, 'r')
         y = yaml.load(f1)
         for tmp in y['repositories']:
             name = tmp['name']
@@ -436,14 +427,13 @@ class OBSPkgManager(object):
         meta_bp_dict = {}
         meta_pb_dict = {}
         pkg_branch_dict = {}
-        proj_pkg_dict = {} 
-        os.chdir(self.obs_meta_path)
-        cmd = "find | grep _service | grep -Ev 'OBS_PRJ_meta|openEuler-EPOL-LTS' | \
-                awk -F '/' '{print $2,$3,$(NF-1)}' | sort | uniq > %s/res.txt" % self.work_dir
+        proj_pkg_dict = {}
+        cmd = "cd %s && find | grep _service | grep -Ev 'OBS_PRJ_meta|openEuler-EPOL-LTS' | \
+                awk -F '/' '{print $2,$3,$(NF-1)}' | sort | uniq > %s/res.txt && cd - &>/dev/null" % (
+                        self.obs_meta_path, self.init_path)
         while os.system(cmd) != 0:
             continue
-        os.chdir(self.work_dir)
-        f2 = open("%s/res.txt" % self.work_dir, 'r')
+        f2 = open("%s/res.txt" % self.init_path, 'r')
         for line in f2:
             br = line.strip().split()[0]
             proj = line.strip().split()[1]
@@ -457,39 +447,105 @@ class OBSPkgManager(object):
         f2.close()
         for key, value in meta_bp_dict.items():
             meta_bp_dict[key] = list(set(value))
-        os.remove("%s/res.txt" % self.work_dir)
+        os.remove("%s/res.txt" % self.init_path)
         data_list.append(meta_bp_dict)
         data_list.append(pkg_branch_dict)
         data_list.append(proj_pkg_dict)
         data_list.append(meta_pb_dict)
         return data_list
-   
+
+    def _get_samebranchpkg_and_pkgwithoutservice(self):
+        """
+        get same packages under same branch and packages without _service file
+        """
+        same_pkg_dict = {}
+        no_service_dict = {}
+        proj_pkg_dict = {}
+        meta_pb_dict = {}
+        all_data = []
+        for branch, projs in self.branch_proj_dict.items():
+            proj_pkg = {}
+            tmp_list = []
+            tmp = {}
+            for proj in projs.split(' '):
+                if proj.endswith(":Bak") and "RISC-V" in proj and "selfbuild" in proj:
+                    continue
+                proj_path = os.path.join(self.obs_meta_path, branch, proj)
+                if os.path.exists(proj_path):
+                    meta_pb_dict[proj] = branch
+                    pkglist = os.listdir(os.path.join(self.obs_meta_path, branch, proj))
+                    if "README.md" in pkglist:
+                        pkglist.remove("README.md")
+                    if "readme.md" in pkglist:
+                        pkglist.remove("readme.md")
+                    if pkglist:
+                        proj_pkg[proj] = pkglist
+                        proj_pkg_dict[proj] = pkglist
+                        tmp_list.extend(pkglist)
+                        for pkg in pkglist:
+                            pkg_service_path = os.path.join(proj_path, pkg, "_service")
+                            if not os.path.exists(pkg_service_path):
+                                no_service_dict.setdefault(proj, []).append(pkg)
+            if tmp_list:
+                b = dict(Counter(tmp_list))
+                for key, value in b.items():
+                    if value > 1:
+                        for proj, pkg in proj_pkg.items():
+                            if key in pkg:
+                                tmp.setdefault(key, []).append(proj)
+            if tmp:
+                same_pkg_dict[branch] = tmp
+        all_data.append(same_pkg_dict)
+        all_data.append(no_service_dict)
+        all_data.append(proj_pkg_dict)
+        all_data.append(meta_pb_dict)
+        return all_data
+
     def _check_obs_meta_pkg(self):
-        self._pre_env()
-        mylist = self._parse_meta_data()
-        proj_pkg_dict = mylist[2]
-        meta_pb_dict = mylist[3]
+        same_pkg_dict = {}
+        no_service_dict = {}
+        proj_pkg_dict = {}
+        meta_pb_dict = {}
+        same_pkg_dict, no_service_dict, proj_pkg_dict, meta_pb_dict = self._get_samebranchpkg_and_pkgwithoutservice()
+        log.info("=====Check need add or delete packages=====")
         for proj, pkg in proj_pkg_dict.items():
-            log.info("proj:%s" % proj)
+            log.info("Project:%s" % proj)
             obs_pkg = os.popen("osc ls %s 2>/dev/null" % proj).read().strip()
             obs_pkg = obs_pkg.replace('\n', ',').split(',')
-            log.info("obs pkg total:%s" % len(obs_pkg))
-            log.info("meta pkg total:%s" % len(pkg))
+            log.info("Obs pkg total:%s" % len(obs_pkg))
+            log.info("Meta pkg total:%s" % len(pkg))
             need_add = set(pkg) - set(obs_pkg)
-            log.info("need add pkg total:%s" % len(need_add))
-            log.info("need add pkgname:%s" % need_add)
+            log.info("Need add pkg total:%s" % len(need_add))
+            log.info("Need add pkgname:%s" % list(need_add))
             need_del = set(obs_pkg) - set(pkg)
-            log.info("need del pkg total:%s" % len(need_del))
-            log.info("need del pkgname:%s" % need_del)
-            if len(need_add):
-                for pkgname in list(need_add):
-                    self._add_pkg(proj, pkgname, meta_pb_dict[proj])
-                    if self.sync_code:
-                        self._sync_pkg_code(proj, pkgname, meta_pb_dict[proj])
-            if len(need_del):
-                for pkgname in list(need_del):
-                    self._del_pkg(proj, pkgname)
+            log.info("Need del pkg total:%s" % len(need_del))
+            log.info("Need del pkgname:%s" % list(need_del))
+            if proj in no_service_dict.keys():
+                log.info("Without _service file pkgname:%s" % no_service_dict[proj])
+            else:
+                log.info("Without _service file pkgname:[]")
+            #if len(need_add):
+            #    for pkgname in list(need_add):
+            #        self._add_pkg(proj, pkgname, meta_pb_dict[proj])
+            #        if self.sync_code:
+            #            self._sync_pkg_code(proj, pkgname, meta_pb_dict[proj])
+            #if len(need_del):
+            #    for pkgname in list(need_del):
+            #        self._del_pkg(proj, pkgname)
             log.info("===========================")
+        log.info("=====Check same package under same branch report=====")
+        for branch, msg in same_pkg_dict.items():
+            log.info("Branch : %s" % branch)
+            log.info("Packagename\tPorjectname")
+            for pkg, proj in msg.items():
+                log.info("%s\t%s" % (pkg, proj))
+            log.info("=====================================================")
+        if same_pkg_dict or no_service_dict:
+            log.info("Have some problems !!!")
+            exit(1)
+        else:
+            log.info("Have no problems !!!")
+            exit(0)
 
     def _check_yaml_meta_pkg(self, yaml_dict, meta_bp_dict, pkg_branch_dict):
         """
@@ -555,7 +611,6 @@ class OBSPkgManager(object):
         check the obs project and operate according to the src-openeuler.yaml file
         """
         yaml_dict = {}
-        self._pre_env()
         self._git_clone("community")
         yaml_dict = self._parse_yaml_data()
         mylist = self._parse_meta_data()
