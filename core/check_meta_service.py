@@ -235,7 +235,8 @@ class CheckMetaPull(object):
             error_flag2 = self._check_correspond_from_service(**all_info)
         if "-b" not in sys.argv:
             error_flag3 = self._detect_protect_branch(pkg_path)
-        error_flag = error_flag1 or error_flag2 or error_flag3
+        error_flag4 = self._one_pkg_one_branch(pkg_path)
+        error_flag = error_flag1 or error_flag2 or error_flag3 or error_flag4
         if error_flag:
             self.check_error.append(pkg_path)
         return error_flag
@@ -419,6 +420,31 @@ class CheckMetaPull(object):
         multi_info = {'branchs':branchs, 'projects':projects}
         return multi_info
 
+    def _one_pkg_one_branch(self, change):
+        """
+        checks if the same package exists in a branch
+        """
+        pkg = change.split('/')[-2]
+        branch = change.split('/')[-4]
+        now_path = os.getcwd()
+        all_pkg_pro = []
+        if "multi" in change.split('/')[0] or "Multi" in change.split('/')[0]:
+            meta_branch_path = os.path.join(self.current_path, "obs_meta", "multi_version", branch)
+        else:
+            meta_branch_path = os.path.join(self.current_path, "obs_meta", branch)
+        os.chdir(meta_branch_path)
+        all_pkg_path = os.popen("find | grep %s" % pkg).read().split('\n')
+        log.info("all_pkg_name_contains %s:%s" % (pkg, all_pkg_path))
+        for x in all_pkg_path:
+            if x.split("/")[-1] == pkg and ":Bak" not in x:
+                all_pkg_pro.append(x)
+        log.info("%s in %s is %s" % (pkg, branch, all_pkg_pro))
+        os.chdir(now_path)
+        if len(all_pkg_pro) != 1:
+            log.error("%s in %s is %s" % (pkg, branch, all_pkg_pro))
+            log.error("RPM can only exist in one project for one branch")
+            return "yes"
+
     def _distinguish_check_service(self, change):
         """
         Distingguish the handing of Multi branch from that of Service
@@ -508,8 +534,8 @@ class CheckMetaPull(object):
 
 if __name__ == "__main__":
     kw = {}
-    kw['pr_id'] = "742"
+    kw['pr_id'] = "765"
     kw['branch'] = ""
-    kw['token'] = ""
+    kw['access_token'] = "***"
     check = CheckMetaPull(**kw)
     check.do_all()
