@@ -169,21 +169,23 @@ class GETDate(object):
         """
         push the latest obs_pkg_rpms to origin
         """
-        for i in range(5):
-            push_cmd = "cd obs_pkg_rpms && git add * && \
-                    git commit -m 'update for package' && git push && cd -"
-            push_result = subprocess.getstatusoutput(push_cmd)
-            log.info(push_result)
-            if "nothing to commit" in push_result[1]:
-                log.info("SUCCESS:All the package date in <<%s>> \
-                        already be latest!!" % self.branch)
-                return
-            elif push_result[0] == 0:
-                log.info("SUCCESS:Push success for latest date to obs_pkg_rpms")
-                return
-            else:
-                log.debug("Try Push to obs_pkg_rpms: %s" % i)
-        raise SystemExit("Failed: Push to obs_pkg_rpms failed")
+        os.chdir("obs_pkg_rpms")
+        status_cmd = "git status -s"
+        commit_cmd = "git add -A && git commit -m 'update for package'"
+        if os.popen(status_cmd).read():
+            if os.system(commit_cmd) == 0:
+                for i in range(5):
+                    push_cmd = "git push -f"
+                    push_result = subprocess.getstatusoutput(push_cmd)
+                    log.info(push_result)
+                    if push_result[0] == 0:
+                        log.info("SUCCESS:Push success for latest date to obs_pkg_rpms")
+                        return
+                    else:
+                        log.debug("Try Push to obs_pkg_rpms: %s" % i)
+                raise SystemExit("Failed: Push to obs_pkg_rpms failed")
+        else:
+            log.info("NO CHAGE,nothing to commit")
 
     def update_to_obs_pkg_rpms(self):
         """
