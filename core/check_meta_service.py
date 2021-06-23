@@ -45,6 +45,7 @@ class CheckMetaPull(object):
         self.token = self.kwargs['access_token']
         self.current_path = os.getcwd()
         self.check_error = []
+        self.meta_path = self.kwargs['obs_meta_path']
 
     def _clean(self):
         """
@@ -83,21 +84,25 @@ class CheckMetaPull(object):
         fetch_cmd = "git fetch origin pull/%s/head:thispr" % self.prid
         branch_cmd = "git branch -a | grep 'thispr'"
         checkout_cmd = "git checkout thispr"
-        changed_file_cmd = "git diff --name-status master...thispr"
-        for x in range(5):
+        changed_file_cmd = "git diff --name-status HEAD~1 HEAD~0"
+        if not self.meta_path:
+            for x in range(5):
+                os.chdir("obs_meta")
+                fetch_result = os.popen(fetch_cmd).read()
+                log.info(fetch_result)
+                branch_result = os.popen(branch_cmd).readlines()
+                if branch_result:
+                    log.info(branch_result)
+                    break
+                else:
+                    os.chdir("../")
+                    self._clean()
+                    self._get_latest_obs_meta()
+            show_result = os.popen(checkout_cmd).readlines()
+            log.info(show_result)
+        else:
+            cp_result = os.system("cp -rf %s ./ " % self.meta_path)
             os.chdir("obs_meta")
-            fetch_result = os.popen(fetch_cmd).read()
-            log.info(fetch_result)
-            branch_result = os.popen(branch_cmd).readlines()
-            if branch_result:
-                log.info(branch_result)
-                break
-            else:
-                os.chdir("../")
-                self._clean()
-                self._get_latest_obs_meta()
-        show_result = os.popen(checkout_cmd).readlines()
-        log.info(show_result)
         changed_file = os.popen(changed_file_cmd).readlines()
         log.info(changed_file)
         os.chdir("../")
@@ -201,7 +206,7 @@ class CheckMetaPull(object):
             error_flag = self._pkgname_check(info['pkg_name'], info['ser_name'])
         else:
             log.error("**************_Service URL ERROR*****************")
-            log.error("FAILED:Please check the branch in your %s _service again"
+            log.error("FAILED:Please check the url in your %s _service again"
                     % info['pkg_name'])
             error_flag = "yes"
         return error_flag
@@ -233,7 +238,7 @@ class CheckMetaPull(object):
                 'ser_next':service_next, 'pkg_name':path_info[0],
                 'ser_name':service_name}
             error_flag2 = self._check_correspond_from_service(**all_info)
-        if "-b" not in sys.argv:
+        if self.token:
             error_flag3 = self._detect_protect_branch(pkg_path)
         error_flag4 = self._one_pkg_one_branch(pkg_path)
         error_flag = error_flag1 or error_flag2 or error_flag3 or error_flag4
@@ -392,8 +397,11 @@ class CheckMetaPull(object):
         """
         get all change file_path
         """
-        self._clean()
-        self._get_latest_obs_meta()
+        if self.meta_path:
+            cp_result = os.system("cp -rf %s ./" % self.meta_path)
+        else:
+            self._clean()
+            self._get_latest_obs_meta()
         changefile = self._get_change_file()
         changelist = []
         for msg in changefile:
@@ -534,8 +542,9 @@ class CheckMetaPull(object):
 
 if __name__ == "__main__":
     kw = {}
-    kw['pr_id'] = "765"
+    kw['pr_id'] = "780"
     kw['branch'] = ""
-    kw['access_token'] = "***"
+    kw['access_token'] = ""
+    kw['obs_meta_path'] = ""
     check = CheckMetaPull(**kw)
     check.do_all()
