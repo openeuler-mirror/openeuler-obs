@@ -1,8 +1,16 @@
-v1.2.6:
-support multi_version
-v1.2.7:
-use multithreading to manipulate packages and add Rename-pkg-name type
-v1.2.8:
-Added the ablility to get the latest repository code time and synchronize to obs_pkg_rpms
+v1.3.0:
+ - add tool for creating pckg-mgmt.yaml file 
+ - add tool for modified src-openeuler.yaml file according to pckg-mgmt.yaml file contents
+ - add obs_meta entrance guard check
+ - add push code to obs_meta on changes to the pckg-mgmt.yaml file
+ - add test for check_obs_service
+ - add test for sync_pckg_mgmt
 v1.2.9:
-Added OBS package build failed email notification
+ - add obs package build failed email notification
+v1.2.8:
+ - add the ablility to get the latest repository code time and synchronize to obs_pkg_rpms
+v1.2.7:
+ - use multithreading to manipulate packages 
+ - add support Rename-pkg-name type
+v1.2.6:
+ - support multi_version
