@@ -58,10 +58,15 @@ class SetEnv(object):
         self._gitee_info = None
         self.obs_info = {}
         self.gitee_info = {}
+        self.token = ""
         self.home_dir = os.environ['HOME']
         self.oscrc = os.path.join(self.home_dir, ".oscrc")
         self.oscrc_bak = os.path.join(self.home_dir, ".oscrc.bak")
         self.gitee_info_bak = {"user":"", "email":""}
+
+    def get_token(self):
+        self.token = self.config.get("gitee", "token")
+        return self.token
     
     def set_oscrc(self):
         self._obs_info = self.config.options("obs")
