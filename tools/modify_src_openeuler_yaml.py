@@ -18,6 +18,7 @@ modify src-openeuler.yaml
 """
 
 import os
+import sys
 import yaml
 import shutil
 import argparse
@@ -30,7 +31,7 @@ args = par.parse_args()
 
 if not os.path.exists(args.pckg_mgmt):
     print("The pckg_mgmt.yaml file is not exist!")
-    exit(1)
+    sys.exit(1)
 
 def git_clone(gitee_repo):
     repo_path = os.path.join(os.getcwd(), gitee_repo)
@@ -40,7 +41,7 @@ def git_clone(gitee_repo):
     cmd = "git clone --depth 1 %s" % git_url
     if os.system(cmd) != 0:
         print("Git clone %s failed!" % gitee_repo)
-        exit(1)
+        sys.exit(1)
  
 def read_yaml(file_path):
     if os.path.exists(file_path):

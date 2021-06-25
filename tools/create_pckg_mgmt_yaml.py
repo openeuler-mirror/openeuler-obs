@@ -37,7 +37,7 @@ args.to_project.sort()
 
 if len(args.from_project) != len(args.to_project):
     print("length of list from_project and to_project not equal")
-    exit(1)
+    sys.exit(1)
 
 pckg_mgmt_yaml = os.path.join(os.getcwd(), "pckg-mgmt.yaml")
 pkgs_dict = {"packages": {"natural": [], "recycle": [], "delete": []}}
