@@ -542,10 +542,10 @@ class OBSPkgManager(object):
             log.info("=====================================================")
         if same_pkg_dict or no_service_dict:
             log.info("Have some problems !!!")
-            exit(1)
+            sys.exit(1)
         else:
             log.info("Have no problems !!!")
-            exit(0)
+            sys.exit(0)
 
     def _check_yaml_meta_pkg(self, yaml_dict, meta_bp_dict, pkg_branch_dict):
         """

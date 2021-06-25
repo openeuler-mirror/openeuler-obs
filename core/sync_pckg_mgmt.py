@@ -53,7 +53,7 @@ class SyncPckgMgmt(object):
             return change_file
         else:
             log.error("%s not exist!" % self.release_management_path)
-            exit(1)
+            sys.exit(1)
 
     def _get_yaml_file_msg(self, file_path):
         """

@@ -78,7 +78,7 @@ class SetEnv(object):
                 print("oscrc file bakup sucessfull")
             else:
                 print("oscrc file backup failed")
-                exit(1)
+                sys.exit(1)
         cmd = "touch %s && echo '[general]\napiurl=%s\n[%s]\nuser=%s\npass=%s' > %s" % \
              (self.oscrc, self.obs_info["url"], self.obs_info["url"], self.obs_info["user"], \
               self.obs_info["passwd"], self.oscrc)
