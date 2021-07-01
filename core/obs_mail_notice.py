@@ -147,12 +147,18 @@ class ObsMailNotice(object):
                     with ThreadPoolExecutor(10) as executor:
                         for pkg in self.failed_pkglist:
                             executor.submit(self._get_pkg_owner_email, proj, pkg, status)
-        message = self._edit_email_content()
-        ret = self._send_email(message)
-        if ret == 0:
-            log.info("send email succeed !")
+        if self.to_addr_list:
+            message = self._edit_email_content()
+            for x in range(5):
+                ret = self._send_email(message)
+                if ret == 0:
+                    log.info("send email succeed !")
+                    sys.exit(0)
+                else:
+                    log.error("send email failed, Error:%s" % ret)
+            raise SystemExit("Failed to send email!")
         else:
-            log.error("send email failed, Error:%s" % ret)
+            log.info("No build failed or unresolvable packages.")
 
 
 if __name__ == "__main__":
