@@ -206,10 +206,10 @@ class SYNCCode(object):
         """
         obs_pro:The obs project that gitee branch corresponds
         """
-        osc_service = self.cmd.ssh_cmd("osc service remoterun %s %s" % (obs_pro, self.repository))
+        osc_service = os.popen("osc service remoterun %s %s" % (obs_pro, self.repository)).readlines()
         for results in osc_service:
-            if "ok" in str(results.strip()):
-                log.info(str(results.strip()))
+            if "ok" in results:
+                log.info(results)
                 log.info("Success for osc service remoterun the %s" % self.repository)
                 return True
             else:
