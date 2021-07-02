@@ -524,14 +524,14 @@ class OBSPkgManager(object):
                 log.info("Without _service file pkgname:%s" % no_service_dict[proj])
             else:
                 log.info("Without _service file pkgname:[]")
-            #if len(need_add):
-            #    for pkgname in list(need_add):
-            #        self._add_pkg(proj, pkgname, meta_pb_dict[proj])
-            #        if self.sync_code:
-            #            self._sync_pkg_code(proj, pkgname, meta_pb_dict[proj])
-            #if len(need_del):
-            #    for pkgname in list(need_del):
-            #        self._del_pkg(proj, pkgname)
+            if len(need_add):
+                for pkgname in list(need_add):
+                    self._add_pkg(proj, pkgname, meta_pb_dict[proj])
+                    if self.sync_code:
+                        self._sync_pkg_code(proj, pkgname, meta_pb_dict[proj])
+            if len(need_del):
+                for pkgname in list(need_del):
+                    self._del_pkg(proj, pkgname)
             log.info("===========================")
         log.info("=====Check same package under same branch report=====")
         for branch, msg in same_pkg_dict.items():
