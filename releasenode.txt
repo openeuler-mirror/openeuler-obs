@@ -1,3 +1,5 @@
+v1.3.1:
+ - add support for 20.03-LTS-Next in oepkg branch
 v1.3.0:
  - add tool for creating pckg-mgmt.yaml file 
  - add tool for modified src-openeuler.yaml file according to pckg-mgmt.yaml file contents
