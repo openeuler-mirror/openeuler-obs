@@ -1,3 +1,5 @@
+v1.3.2:
+ - cancel getting the merge time for gitee_to_obs
 v1.3.1:
  - add support for 20.03-LTS-Next in oepkg branch
 v1.3.0:

@@ -241,7 +241,6 @@ class SYNCCode(object):
         """
         if not self.pkgs:
             if self.repository and self.gitee_branch:
-                self._write_date_to_file()
                 if not self._pre_sync_code(self.project):
                     raise SystemExit("SYNC %s ERROR" % self.repository)
             else:
@@ -273,7 +272,6 @@ class SYNCCode(object):
                     self.repository = pkg.replace('\n', '')
                 else:
                     self.repository = pkg
-                self._write_date_to_file()
                 sync_result = self._pre_sync_code(self.project)
                 if not sync_result:
                     self.sync_failed_rpms.append(self.repository)
