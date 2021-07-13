@@ -1,5 +1,7 @@
 v1.3.3:
  - add new tool for getting time from obs building to iso
+ - support collect rpms for openEuler-20.03-LTS-Next in oepkg
+ - add requirement.txt to document the Python modules involved
 v1.3.2:
  - cancel getting the merge time for gitee_to_obs
 v1.3.1:

@@ -1,0 +1,12 @@
+Please make sure the Python module is installed:
+ - pexpect
+ - configparser
+ - requests
+ - lxml
+ - beautifulsoup4
+ - threadpool
+ - pyyaml
+ - uuid
+ - kafka
+ - python-jenkins
+ - argparse
