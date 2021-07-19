@@ -101,7 +101,7 @@ def start_jenkins_after_obs(args):
     obs_end_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
     job_name = "Main-" + obs_pro.replace(":", "-") + "-build"
-    ja = jenkins.Jenkins("http://114.116.250.98", username=args.user, password=args.passwd, timeout=120)
+    ja = jenkins.Jenkins("https://ci.openeuler.org", username=args.user, password=args.passwd, timeout=120)
     num = ja.build_job("OBS-openEuler-build", parameters={"obs_start": obs_start_time, "obs_end": obs_end_time, \
             "iso_start": obs_end_time, "build_job": job_name, "obs_project": obs_pro})
 
