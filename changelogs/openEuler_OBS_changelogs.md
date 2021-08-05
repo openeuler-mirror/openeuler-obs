@@ -1,4 +1,4 @@
-# openEuler Open Build Service Change Log Table
+# openEuler Open Build Service Change Logs
 
 ## 背景
 为规范openEuler OBS系统管理，让每一次变更有迹可循，特制定该变更记录表，用于记录对OBS系统做出的每一次配置变更。包括系统硬件配置变更、硬件扩展、软件安装、软件升级、软件变更、相关配置修改等。
