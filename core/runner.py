@@ -29,6 +29,7 @@ from core.package_manager import OBSPkgManager
 from core.update_obs_repos import RPMManager
 from core.obs_mail_notice import ObsMailNotice
 from core.sync_pckg_mgmt import SyncPckgMgmt
+from core.check_release_management import CheckReleaseManagement
 import os
 
 class Runner(object):
@@ -128,6 +129,13 @@ class Runner(object):
         mgmt = SyncPckgMgmt(**self.kwargs)
         mgmt.sync_yaml_meta()
 
+    def _check_release_mgmt(self):
+        """
+        check the realese_mgmt commit
+        """
+        check_mgmt = CheckReleaseManagement(**self.kwargs)
+        check_mgmt.check_pckg_yaml()
+
     def run(self):
         """
         run main
@@ -159,3 +167,5 @@ class Runner(object):
             self._mail_notice()
         elif self.kwargs["pckg_mgmt"] == "true":
             self._pckg_mgmt()
+        elif self.kwargs["check_pckg_mgmt"] == "true":
+            self._check_release_mgmt()

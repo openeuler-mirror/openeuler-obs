@@ -94,7 +94,7 @@ class GETDate(object):
         get a fixed format date
         rpm: which package you want to get
         """
-        cmd = "show -s --format=%ad"
+        cmd = "show -s --format=%ad --date=local"
         pkg_dir = os.path.join(self.realdir, rpm)
         show_result = self.cmd.ssh_cmd("git -C %s %s" % (pkg_dir, cmd))
         log.info("%s : %s" % (rpm, show_result[1].decode("utf-8").replace('\r\n', '')))
