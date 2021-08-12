@@ -141,6 +141,7 @@ class CheckReleaseManagement(object):
         """
         Detects the existence of file contents
         """
+        error_flag = False
         for yaml_path in yaml_path_list:
             log.debug(yaml_path + ":")
             for pkg_path in yaml_msg[yaml_path]:
@@ -148,9 +149,8 @@ class CheckReleaseManagement(object):
                 if not os.path.exists(pkg_dir_path):
                     log.error("The {0} not exist in obs_meta".format(pkg_path))
                     error_flag = True
-            if not error_flag:
-                log.debug("All rpms exist")
-                error_flag = False
+        if not error_flag:
+            log.debug("All rpms exist")
         return error_flag
 
     def check_pckg_yaml(self):
