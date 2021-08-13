@@ -187,7 +187,7 @@ class SyncPckgMgmt(object):
         if not os.path.exists(pkg_service_path):
             cmd = "cp %s/_service %s/_service" % (from_pkg_path, pkg_path)
             if os.system(cmd) == 0:
-                cmd = "sed -i 's/%s/%s/g' %s/_service" % (branch, tmp['branch_to'], pkg_path)
+                cmd = "sed -i 's/%s\//%s\//g' %s/_service" % (branch, tmp['branch_to'], pkg_path)
                 if os.system(cmd) == 0:
                     log.info("add %s %s %s _service succeed!" % (tmp['branch_to'], tmp['obs_to'], tmp['pkgname']))
                 else:

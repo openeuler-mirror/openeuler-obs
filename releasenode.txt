@@ -1,6 +1,7 @@
 v1.3.4:
  - change to correct time collection
  - add check for rease_management
+ - update config file and fix _service error and fix gitee repo error
 v1.3.3:
  - add new tool for getting time from obs building to iso
  - support collect rpms for openEuler-20.03-LTS-Next in oepkg
