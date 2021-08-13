@@ -44,7 +44,10 @@ class OBSPkgManager(object):
         """
         self.kwargs = kwargs
         self.init_path = self.kwargs["init_path"]
+        self.commitid = self.kwargs["cm_id"]
         self.obs_meta_path = self.kwargs["obs_meta_path"]
+        cmd = "cd %s && git reset --hard %s && cd -" % (self.obs_meta_path, self.commitid)
+        ret = os.system(cmd)
         self.patch_file_path = os.path.join(self.init_path, "diff_patch")
         self.giteeUserName = self.kwargs["gitee_user"]
         self.giteeUserPwd = self.kwargs["gitee_pwd"]

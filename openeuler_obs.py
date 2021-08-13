@@ -87,6 +87,8 @@ par.add_argument("-at", "--access_token", default=False,
         help="gitee access_token number used for api get", required=False)
 par.add_argument("-prid", "--pr_id", default=False,
         help="use the pr_id to get this pullrequest", required=False)
+par.add_argument("-cmid", "--cm_id", default=False,
+        help="use the commit id to reset gitee repository", required=False)
 par.add_argument("-sc", "--sync_code", default=True,
         help="when adding package to project or changing package project, \
                 the code should be synchronized. type bool, default True", required=False)
@@ -143,6 +145,7 @@ kw = {
         "check_pkg_service": args.check_pkg_service,
         "access_token": args.access_token,
         "pr_id": args.pr_id,
+        "cm_id": args.cm_id,
         "sync_code": args.sync_code,
         "all": args.ALL_,
         "sync_gitee_to_obs": args.sync_gitee_to_obs,
