@@ -41,8 +41,8 @@ class CheckReleaseManagement(object):
         self.current_path = os.getcwd()
         self.meta_path = self.kwargs['obs_meta_path']
         self.manage_path = self.kwargs['release_management_path']
-        #self.giteeuser = self.kwargs['gitee_user']
-        #self.giteeuserpwd = self.kwargs['gitee_pwd']
+        self.giteeuser = self.kwargs['gitee_user']
+        self.giteeuserpwd = self.kwargs['gitee_pwd']
 
     def _clean(self, pkgname):
         """
@@ -72,25 +72,27 @@ class CheckReleaseManagement(object):
         changed_file_cmd = "git diff --name-status HEAD~1 HEAD~0"
         get_fetch = None
         if not repo_path:
-            self._get_latest_git_repo(owner, pkgname)
-            os.chdir(os.path.join(self.current_path, pkgname))
-            fetch_cmd = "git fetch origin pull/%s/head:thispr" % self.prid
-            checkout_cmd = "git checkout thispr"
-            for x in range(5):
-                fetch_result = os.system(fetch_cmd)
-                checkout_result = os.system(checkout_cmd)
-                log.debug(fetch_result)
-                log.debug(checkout_result)
-                if fetch_result == 0 and checkout_result == 0:
-                    get_fetch = True
-                    break
-                else:
-                    os.chdir(self.current_path)
-                    self._clean(pkgname)
-                    self._get_latest_git_repo(owner, pkgname)
+            self._clean(pkgname)
+            release_path = self._get_latest_git_repo(owner, pkgname)
+            self.manage_path = release_path
+            os.chdir(release_path)
         else:
             os.chdir(repo_path)
-            get_fetch = True
+        fetch_cmd = "git fetch origin pull/%s/head:thispr" % self.prid
+        checkout_cmd = "git checkout thispr"
+        for x in range(5):
+            fetch_result = os.system(fetch_cmd)
+            checkout_result = os.system(checkout_cmd)
+            log.debug(fetch_result)
+            log.debug(checkout_result)
+            if fetch_result == 0 and checkout_result == 0:
+                get_fetch = True
+                break
+            else:
+                os.chdir(self.current_path)
+                self._clean(pkgname)
+                path_release = self._get_latest_git_repo(owner, pkgname)
+                os.chdir(path_release)
         changed_file = os.popen(changed_file_cmd).readlines()
         if get_fetch and changed_file:
             log.info(changed_file)
@@ -157,7 +159,7 @@ class CheckReleaseManagement(object):
         """
         check the obs_from branch_from in pckg-mgmt.yaml
         """
-        change = self._get_repo_change_file(repo_path = self.manage_path)
+        change = self._get_repo_change_file('openeuler', 'release-management', repo_path = self.manage_path)
         change_file = self._parse_commit_file(change)
         yaml_msg = self._get_yaml_msg(change_file)
         error_flag = self._check_pkg_from(change_file, self.meta_path, yaml_msg)
