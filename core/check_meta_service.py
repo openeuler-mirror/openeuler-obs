@@ -444,7 +444,7 @@ class CheckMetaPull(object):
         all_pkg_path = os.popen("find | grep %s" % pkg).read().split('\n')
         log.info("all_pkg_name_contains %s:%s" % (pkg, all_pkg_path))
         for x in all_pkg_path:
-            if x.split("/")[-1] == pkg and ":Bak" not in x:
+            if x.split("/")[-1] == pkg and ":Bak" not in x and "RISC-V" not in x:
                 all_pkg_pro.append(x)
         log.info("%s in %s is %s" % (pkg, branch, all_pkg_pro))
         os.chdir(now_path)
