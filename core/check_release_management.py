@@ -20,6 +20,7 @@ import os
 import sys
 import yaml
 import requests
+import datetime
 Now_path = os.path.join(os.path.split(os.path.realpath(__file__))[0])
 sys.path.append(os.path.join(Now_path, ".."))
 from common.log_obs import log
@@ -70,6 +71,8 @@ class CheckReleaseManagement(object):
         Obtain the change for latest commit
         """
         changed_file_cmd = "git diff --name-status HEAD~1 HEAD~0"
+        fetch_cmd = "git fetch origin pull/%s/head:thispr" % self.prid
+        checkout_cmd = "git checkout thispr"
         get_fetch = None
         if not repo_path:
             self._clean(pkgname)
@@ -78,13 +81,10 @@ class CheckReleaseManagement(object):
             os.chdir(release_path)
         else:
             os.chdir(repo_path)
-        fetch_cmd = "git fetch origin pull/%s/head:thispr" % self.prid
-        checkout_cmd = "git checkout thispr"
         for x in range(5):
             fetch_result = os.system(fetch_cmd)
             checkout_result = os.system(checkout_cmd)
-            log.debug(fetch_result)
-            log.debug(checkout_result)
+            log.debug("STATUS:{0} and {1}".format(fetch_result, checkout_result))
             if fetch_result == 0 and checkout_result == 0:
                 get_fetch = True
                 break
@@ -93,12 +93,24 @@ class CheckReleaseManagement(object):
                 self._clean(pkgname)
                 path_release = self._get_latest_git_repo(owner, pkgname)
                 os.chdir(path_release)
+                self.manage_path = os.path.join(self.current_path, pkgname)
         changed_file = os.popen(changed_file_cmd).readlines()
         if get_fetch and changed_file:
             log.info(changed_file)
             return changed_file
         else:
             raise SystemExit("Error:can not obtain the content for this commit")
+
+    def _rollback_get_msg(self, repo_path):
+        """
+        rollback to last commit
+        """
+        os.chdir(repo_path)
+        roll = os.system("git reset --hard HEAD^")
+        if roll == 0:
+            log.info("Already rollback to last commit")
+        else:
+            raise SystemExit("Error: fail to rollback to last commit")
 
     def _parse_commit_file(self, change_file):
         """
@@ -122,48 +134,131 @@ class CheckReleaseManagement(object):
             log.info("There are no file need to check!!!")
             sys.exit()
 
-    def _get_yaml_msg(self, yaml_path_list):
+    def _get_yaml_msg(self, yaml_path_list, manage_path, rollback=None):
         """
         get the pkg msg in pckg-mgmt.yaml
         """
-        pack_msg = []
-        yaml_msg = {}
+        if rollback == True:
+            self._rollback_get_msg(manage_path)
+        all_pack_msg = {}
         for yaml_path in yaml_path_list:
-            pack_msg.clear()
-            file_path = os.path.join(self.manage_path, yaml_path)
-            with open(file_path, 'r', encoding='utf-8')as f:
-                result = yaml.load(f, Loader=yaml.FullLoader)
-            all_pack_msg = result['packages']['natural']
-            for msg in all_pack_msg:
-                pack_msg.append(os.path.join(msg['branch_from'], msg['obs_from'], msg['name']))
-            yaml_msg[yaml_path] = pack_msg
-        return yaml_msg
-    
-    def _check_pkg_from(self, yaml_path_list, meta_path, yaml_msg):
+            file_path = os.path.join(manage_path, yaml_path)
+            if os.path.exists(file_path):
+                with open(file_path, 'r', encoding='utf-8')as f:
+                    result = yaml.load(f, Loader=yaml.FullLoader)
+                all_pack_msg[yaml_path] = result['packages']['natural']
+            else:
+                all_pack_msg[yaml_path] = []
+        return all_pack_msg
+
+    def _check_key_in_yaml(self, all_pack_msg, change_file):
+        """
+        check the key in your yaml compliance with rules
+        """
+        error_flag = ""
+        keylist = ['branch_from', 'obs_from', 'name', 'branch_to', 'obs_to', 'date']
+        for change in change_file:
+            log.info("{0} key check".format(change))
+            for msg in all_pack_msg[change]:
+                for key in msg.keys():
+                    if key not in keylist:
+                        error_flag = True
+                        log.error(msg)
+                        log.error("ERROR:<<<<<<{0}:>>>>>> should not in there".format(key))
+        if error_flag:
+            raise SystemExit("ERROR: Please ensure the following key values in your yaml")
+
+    def _check_date_time(self, yaml_msg, change_file):
+        """
+        check date and ensure the date to the same day as the commit time
+        """
+        error_flag = False
+        date = datetime.date.today()
+        today = date.day
+        for change in change_file:
+            log.info("{0} date check".format(change))
+            for msg in yaml_msg[change]:
+                yaml_date = int(msg['date'].split('-')[2])
+                if today != yaml_date:
+                    error_flag = True
+                    log.error(msg)
+                    log.error("Wrong Date: <date:{0}>!!!".format(msg['date']))
+        if error_flag:
+            log.error("Please set your date to the same day as the commit time!!!")
+        return error_flag
+
+    def _check_pkg_from(self, meta_path, yaml_msg, change_file):
         """
         Detects the existence of file contents
         """
         error_flag = False
-        for yaml_path in yaml_path_list:
-            log.debug(yaml_path + ":")
-            for pkg_path in yaml_msg[yaml_path]:
-                pkg_dir_path = os.path.join(meta_path, pkg_path)
-                if not os.path.exists(pkg_dir_path):
-                    log.error("The {0} not exist in obs_meta".format(pkg_path))
+        for change in change_file:
+            log.info("{0} pkg_from check".format(change))
+            for msg in yaml_msg[change]:
+                msg_path = os.path.join(meta_path, msg['branch_from'],
+                        msg['obs_from'], msg['name'])
+                if not os.path.exists(msg_path):
+                    yaml_key = os.path.join(msg['branch_from'],
+                            msg['obs_from'], msg['name'])
+                    log.error("The {0} not exist in obs_meta".format(yaml_key))
                     error_flag = True
-        if not error_flag:
-            log.debug("All rpms exist")
         return error_flag
+
+    def _get_diff_msg(self, old_msg, new_msg, change_file_list):
+        """
+        Get the content of this submission
+        """
+        change_list = {}
+        for change in change_file_list:
+            change_list[change] = []
+            for new in new_msg[change]:
+                if new not in old_msg[change]:
+                    change_list[change].append(new)
+        for change in change_file_list:
+            if change_list[change]:
+                log.debug("Change in {0}:".format(change))
+                for msg in change_list[change]:
+                    log.debug(msg)
+            else:
+                del change_list[change]
+                log.info("The are no new msg in {0}!!!".format(change))
+        if change_list:
+            return change_list
+        else:
+            log.info("The are no new msg in your yaml!!!")
+            sys.exit()
+
+    def _check_yaml_format(self, yaml_path_list, manage_path):
+        """
+        check the format for the yaml file
+        """
+        for yaml_path in yaml_path_list:
+            manage_yaml_path = os.path.join(manage_path, yaml_path)
+            try:
+                with open(manage_yaml_path, 'r', encoding='utf-8') as f:
+                    result = yaml.load(f, Loader=yaml.FullLoader)
+                    log.info("{0} format check".format(yaml_path))
+            except Exception as e:
+                log.error("**********FORMAT ERROR***********")
+                log.error("%s format bad Because:%s" % (yaml_path, e))
+                raise SystemExit("May be %s has a bad format" % yaml_path)
 
     def check_pckg_yaml(self):
         """
         check the obs_from branch_from in pckg-mgmt.yaml
         """
-        change = self._get_repo_change_file('openeuler', 'release-management', repo_path = self.manage_path)
+        change = self._get_repo_change_file('openeuler',
+                'release-management', self.manage_path)
         change_file = self._parse_commit_file(change)
-        yaml_msg = self._get_yaml_msg(change_file)
-        error_flag = self._check_pkg_from(change_file, self.meta_path, yaml_msg)
-        if error_flag:
+        self._check_yaml_format(change_file, self.manage_path)
+        change_yaml_msg = self._get_yaml_msg(change_file, self.manage_path)
+        old_yaml_msg = self._get_yaml_msg(change_file, self.manage_path, True)
+        change_msg_list = self._get_diff_msg(old_yaml_msg, change_yaml_msg, change_file)
+        log.info(len(change_msg_list))
+        self._check_key_in_yaml(change_msg_list, change_file)
+        error_flag1 = self._check_pkg_from(self.meta_path, change_msg_list, change_file)
+        error_flag2 = self._check_date_time(change_msg_list, change_file)
+        if error_flag1 or error_flag2:
             raise SystemExit("Please check your commit")
 
 if __name__ == "__main__":
@@ -171,7 +266,7 @@ if __name__ == "__main__":
             "gitee_user":"",
             "gitee_pwd":"",
             "pr_id":"108",
-            "obs_meta_path":"/root/relese-management/openeuler-obs/core/obs_meta",
-            "release_management_path":"/root/relese-management/openeuler-obs/core/release-management"}
+            "obs_meta_path":"***",
+            "release_management_path":"***"}
     check = CheckReleaseManagement(**kw)
     check.check_pckg_yaml()
