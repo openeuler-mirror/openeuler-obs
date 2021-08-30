@@ -1,0 +1,18 @@
+--- bs_repserver	2021-08-28 01:25:01.404000000 +0000
++++ bs_repserver	2021-08-30 02:50:56.452000000 +0000
+@@ -852,6 +852,7 @@
+     for my $bin (@bins) {
+       my $p = $names{$bin};
+       if (!$p) {
++	print "1110-------", $bin, "---------\n";
+ 	push @files, {'name' => $bin, 'error' => 'not available'};
+ 	next;
+       }
+@@ -884,6 +885,7 @@
+         push @files, {'name' => $n, 'filename' => $fd};
+       }
+     }
++    print "1111-------\n", Dumper(@files), "\n---------\n";
+     undef $repo;
+     undef $pool;
+     BSWatcher::serialize_end($serial) if defined $serial;
