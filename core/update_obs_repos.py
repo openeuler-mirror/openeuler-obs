@@ -159,7 +159,7 @@ class RPMManager(object):
         """
         log.debug(rpms_list)
         for r in rpms_list:
-            cmd = "cp %s/%s/%s/%s/%s/%s %s/%s/%s/:full/" \
+            cmd = "cp -p %s/%s/%s/%s/%s/%s %s/%s/%s/:full/" \
                     % (self.obs_project_root_path, self.obs_project, self.repo, \
                     self.arch, pkg, r, self.obs_project_root_path, \
                     self.rpms_to_repo_path, self.arch)
