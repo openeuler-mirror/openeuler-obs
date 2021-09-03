@@ -24,6 +24,7 @@ import datetime
 Now_path = os.path.join(os.path.split(os.path.realpath(__file__))[0])
 sys.path.append(os.path.join(Now_path, ".."))
 from common.log_obs import log
+from collections import Counter
 from common.common import git_repo_src
 
 class CheckReleaseManagement(object):
@@ -146,7 +147,8 @@ class CheckReleaseManagement(object):
             if os.path.exists(file_path):
                 with open(file_path, 'r', encoding='utf-8')as f:
                     result = yaml.load(f, Loader=yaml.FullLoader)
-                all_pack_msg[yaml_path] = result['packages']['natural']
+                all_pack_msg[yaml_path] = result['packages']['natural'] + \
+                        result['packages']['recycle'] + result['packages']['delete']
             else:
                 all_pack_msg[yaml_path] = []
         return all_pack_msg
@@ -243,6 +245,27 @@ class CheckReleaseManagement(object):
                 log.error("%s format bad Because:%s" % (yaml_path, e))
                 raise SystemExit("May be %s has a bad format" % yaml_path)
 
+    def _check_same_pckg(self, change_file_path, yaml_msg):
+        """
+        check the repeat pkg for the yaml file
+        """
+        all_pkg_name = {}
+        for change_file in change_file_path:
+            pkg_name = []
+            log.info("{0} repeat pkg check".format(change_file))
+            for msg in yaml_msg[change_file]:
+                pkg_name.append(msg['name'])
+            dict_pkg_name = dict(Counter(pkg_name))
+            repeat_pkg = [key for key, value in dict_pkg_name.items() if value > 1]
+            if repeat_pkg:
+                all_pkg_name[change_file] = repeat_pkg
+        if all_pkg_name:
+            log.error("The following packages are duplicated in the YAML files")
+            log.error(all_pkg_name)
+            return True
+        else:
+            return False
+
     def check_pckg_yaml(self):
         """
         check the obs_from branch_from in pckg-mgmt.yaml
@@ -258,7 +281,8 @@ class CheckReleaseManagement(object):
         self._check_key_in_yaml(change_msg_list, change_file)
         error_flag1 = self._check_pkg_from(self.meta_path, change_msg_list, change_file)
         error_flag2 = self._check_date_time(change_msg_list, change_file)
-        if error_flag1 or error_flag2:
+        error_flag3 = self._check_same_pckg(change_file, change_yaml_msg)
+        if error_flag1 or error_flag2 or error_flag3:
             raise SystemExit("Please check your commit")
 
 if __name__ == "__main__":
