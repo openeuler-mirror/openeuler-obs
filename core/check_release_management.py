@@ -266,6 +266,36 @@ class CheckReleaseManagement(object):
         else:
             return False
 
+    def _check_branch_msg(self, change_msg, yaml_path_list, manage_path):
+        """
+        check the branch msg in your commit
+        """
+        error_msg = {}
+        branch_msg_path = os.path.join(manage_path, "valid_release_branches.yaml")
+        with open(branch_msg_path, 'r', encoding='utf-8') as f:
+            branch_result = yaml.load(f, Loader=yaml.FullLoader)
+        for yaml_path in yaml_path_list:
+            log.info("{0} branch check".format(yaml_path))
+            error_msg[yaml_path] = []
+            yaml_branch = yaml_path.split("/")[-2]
+            for msg in change_msg[yaml_path]:
+                if msg['branch_to'] == yaml_branch and \
+                        msg['branch_from'] in branch_result['branch'].keys() and \
+                        msg['branch_to'] in branch_result['branch'][msg['branch_from']]:
+                            continue
+                else:
+                    error_msg[yaml_path].append(msg)
+            if not error_msg[yaml_path]:
+                del error_msg[yaml_path]
+            else:
+                log.error("Wrong branch msg in there:")
+                for msg in error_msg[yaml_path]:
+                    log.error(msg)
+        if error_msg:
+            return True
+        else:
+            return False
+
     def check_pckg_yaml(self):
         """
         check the obs_from branch_from in pckg-mgmt.yaml
@@ -282,7 +312,8 @@ class CheckReleaseManagement(object):
         error_flag1 = self._check_pkg_from(self.meta_path, change_msg_list, change_file)
         error_flag2 = self._check_date_time(change_msg_list, change_file)
         error_flag3 = self._check_same_pckg(change_file, change_yaml_msg)
-        if error_flag1 or error_flag2 or error_flag3:
+        error_flag4 = self._check_branch_msg(change_msg_list, change_file, self.manage_path)
+        if error_flag1 or error_flag2 or error_flag3 or error_flag4:
             raise SystemExit("Please check your commit")
 
 if __name__ == "__main__":
