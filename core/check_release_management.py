@@ -162,11 +162,15 @@ class CheckReleaseManagement(object):
         for change in change_file:
             log.info("{0} key check".format(change))
             for msg in all_pack_msg[change]:
-                for key in msg.keys():
-                    if key not in keylist:
-                        error_flag = True
-                        log.error(msg)
-                        log.error("ERROR:<<<<<<{0}:>>>>>> should not in there".format(key))
+                if len(msg.keys()) == 6:
+                    for key in msg.keys():
+                        if key not in keylist:
+                            error_flag = True
+                            log.error(msg)
+                            log.error("ERROR:<<<<<<{0}:>>>>>> should not in there".format(key))
+                else:
+                     error_flag = True
+                     log.error("Please check {0}".format(msg))
         if error_flag:
             raise SystemExit("ERROR: Please ensure the following key values in your yaml")
 
