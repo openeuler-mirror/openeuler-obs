@@ -153,6 +153,32 @@ class CheckReleaseManagement(object):
                 all_pack_msg[yaml_path] = []
         return all_pack_msg
 
+    def _check_rpms_integrity(self, old_pack_msg, new_pack_msg, yaml_path_list):
+        """
+        ensure the rpms exist in all the tags
+        """
+        old_pkg = {}
+        new_pkg = {}
+        error_pkg = {}
+        log.info("rpms exists check")
+        for change_file in yaml_path_list:
+            old_pkg[change_file] = []
+            new_pkg[change_file] = []
+            for msg in old_pack_msg[change_file]:
+                old_pkg[change_file].append(msg['name'])
+            for msg in new_pack_msg[change_file]:
+                new_pkg[change_file].append(msg['name'])
+        for change_file in yaml_path_list:
+            error_pkg[change_file] = []
+            for pkg in old_pkg[change_file]:
+                if pkg not in new_pkg[change_file]:
+                    error_pkg[change_file].append(pkg)
+            if not error_pkg[change_file]:
+                del error_pkg[change_file]
+        if error_pkg:
+            log.error("May be {0} should not be delete".format(error_pkg))
+            raise SystemExit("ERROR: Please check your PR")
+
     def _check_key_in_yaml(self, all_pack_msg, change_file):
         """
         check the key in your yaml compliance with rules
@@ -169,8 +195,8 @@ class CheckReleaseManagement(object):
                             log.error(msg)
                             log.error("ERROR:<<<<<<{0}:>>>>>> should not in there".format(key))
                 else:
-                     error_flag = True
-                     log.error("Please check {0}".format(msg))
+                    error_flag = True
+                    log.error("Please check {0}".format(msg))
         if error_flag:
             raise SystemExit("ERROR: Please ensure the following key values in your yaml")
 
@@ -193,7 +219,7 @@ class CheckReleaseManagement(object):
             log.error("Please set your date to the same day as the commit time!!!")
         return error_flag
 
-    def _check_pkg_from(self, meta_path, yaml_msg, change_file):
+    def _check_pkg_from(self, meta_path, yaml_msg, change_file, yaml_all_msg):
         """
         Detects the existence of file contents
         """
@@ -201,6 +227,9 @@ class CheckReleaseManagement(object):
         for change in change_file:
             log.info("{0} pkg_from check".format(change))
             for msg in yaml_msg[change]:
+                delete_tag = self._check_delete_tag(msg, yaml_all_msg[change])
+                if delete_tag:
+                    continue
                 msg_path = os.path.join(meta_path, msg['branch_from'],
                         msg['obs_from'], msg['name'])
                 if not os.path.exists(msg_path):
@@ -209,6 +238,32 @@ class CheckReleaseManagement(object):
                     log.error("The {0} not exist in obs_meta".format(yaml_key))
                     error_flag = True
         return error_flag
+
+    def _check_delete_tag(self, msg, yaml_msg):
+        """
+        ensure the change msg in the delete
+        """
+        del_name = []
+        del_msg = yaml_msg['packages']['delete']
+        if del_msg:
+            for pkg in yaml_msg['packages']['delete']:
+                del_name.append(pkg['name'])
+            log.debug("All delete rpms:{0}".format(del_name))
+            if msg['name'] in del_name:
+                return True
+        return False
+
+    def _get_allkey_msg(self, change_file, manage_path):
+        """
+        get all the msg in yaml
+        """
+        all_msg = {}
+        for path in change_file:
+            yaml_path = os.path.join(manage_path, path)
+            with open(yaml_path, 'r', encoding='utf-8')as f:
+                result = yaml.load(f, Loader=yaml.FullLoader)
+            all_msg[path] = result
+        return all_msg
 
     def _get_diff_msg(self, old_msg, new_msg, change_file_list):
         """
@@ -286,7 +341,7 @@ class CheckReleaseManagement(object):
                 if msg['branch_to'] == yaml_branch and \
                         msg['branch_from'] in branch_result['branch'].keys() and \
                         msg['branch_to'] in branch_result['branch'][msg['branch_from']]:
-                            continue
+                    continue
                 else:
                     error_msg[yaml_path].append(msg)
             if not error_msg[yaml_path]:
@@ -308,12 +363,14 @@ class CheckReleaseManagement(object):
                 'release-management', self.manage_path)
         change_file = self._parse_commit_file(change)
         self._check_yaml_format(change_file, self.manage_path)
+        all_yaml_msg = self._get_allkey_msg(change_file, self.manage_path)
         change_yaml_msg = self._get_yaml_msg(change_file, self.manage_path)
         old_yaml_msg = self._get_yaml_msg(change_file, self.manage_path, True)
+        self._check_rpms_integrity(old_yaml_msg, change_yaml_msg, change_file)
         change_msg_list = self._get_diff_msg(old_yaml_msg, change_yaml_msg, change_file)
         log.info(len(change_msg_list))
         self._check_key_in_yaml(change_msg_list, change_file)
-        error_flag1 = self._check_pkg_from(self.meta_path, change_msg_list, change_file)
+        error_flag1 = self._check_pkg_from(self.meta_path, change_msg_list, change_file, all_yaml_msg)
         error_flag2 = self._check_date_time(change_msg_list, change_file)
         error_flag3 = self._check_same_pckg(change_file, change_yaml_msg)
         error_flag4 = self._check_branch_msg(change_msg_list, change_file, self.manage_path)
