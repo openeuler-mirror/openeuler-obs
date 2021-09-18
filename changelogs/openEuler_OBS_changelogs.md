@@ -23,3 +23,4 @@
 | 3 | 2021-08-16  | 常驻服务 | 看板数据（单包构建时长） | 参考 "obs_build_statistics_to_grafana.md" | 邓鹏 | 是 | changelog_03/fluent.conf, changelog_03/obs_build_statistics_to_grafana.md|
 | 4 | 2021-08-16 | 配置 | 修改工程调度节点 | openEuler-Build 在 other 单节点调度 |  | 否 | backend-server  home-backend-server 两个节点 /usr/obs/lib/server/BSConfig.pm 配置文件添加 'openEuler-Build' => 'other', |
 | 5 | 2021-08-30  | obs代码 | 定位门禁构建时出现CPIO Archive Error | 参考 "changelog_05/bs_repserver" | 邓鹏 | 是 | changelog_05/bs_repserver|
+| 6 | 2021-09-18  | 配置变更 | openEuler中部分软件包由于构建的时候没有root权限，所以出现部分社区用例执行失败或者跳过的情况 | 修改配置支持libaio、multipath-tools、systemd使用root进行构建 | 黄堆荣 | 是 | |
