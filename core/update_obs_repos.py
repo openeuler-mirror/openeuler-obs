@@ -124,7 +124,7 @@ class RPMManager(object):
         pkg_bak: dir for backup
         rpm: name of rpm
         """
-        tmp_list = [rpms_list[i:i+500] for i in range(0,len(rpms_list),500)]
+        tmp_list = [rpms_list[i:i + 500] for i in range(0, len(rpms_list), 500)]
         for l in tmp_list:
             cmd = """
 rm -r %s/%s-*; mkdir -p %s
