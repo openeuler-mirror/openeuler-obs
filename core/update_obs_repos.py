@@ -117,6 +117,27 @@ class RPMManager(object):
 
         return rpm_list
        
+    #def backup_old_rpm(self, pkg_bak, rpm):
+    def backup_old_rpm(self, backup_dir, pkg, pkg_bak, rpms_list):
+        """
+        backup rpm
+        pkg_bak: dir for backup
+        rpm: name of rpm
+        """
+        tmp_list = [rpms_list[i:i + 500] for i in range(0, len(rpms_list), 500)]
+        for l in tmp_list:
+            cmd = """
+rm -r %s/%s-*; mkdir -p %s
+rpms="%s"
+for r in $rpms
+do
+    mv %s/%s/%s/:full/$r %s/ 
+done
+""" % (backup_dir, pkg, pkg_bak, ' '.join(l), self.obs_project_root_path, \
+self.rpms_to_repo_path, self.arch, pkg_bak)
+            log.info(cmd)
+            self.pex.ssh_cmd(cmd)
+
     def backup_old_rpms_by_pkg(self, pkg, rpms_list):
         """
         backup old rpms by package name
@@ -127,16 +148,15 @@ class RPMManager(object):
             t = time.strftime("%Y-%m-%d-%H-%M", time.localtime())
             backup_dir =  os.path.join(self.obs_project_root_path, self.rpms_to_repo_path, "backup")
             pkg_bak = os.path.join(backup_dir, "%s-%s" % (pkg, t))
-            cmd = "rm -r %s/%s-*; mkdir -p %s" % (backup_dir, pkg, pkg_bak)
-            log.debug(cmd)
-            ret = self.pex.ssh_cmd(cmd)
-            log.debug(ret)
-            for f in rpms_list:
-                cmd = "mv %s/%s/%s/:full/%s %s/" % (self.obs_project_root_path, \
-                        self.rpms_to_repo_path, self.arch, f, pkg_bak)
-                log.debug(cmd)
-                ret = self.pex.ssh_cmd(cmd)
-                log.debug(ret)
+            self.backup_old_rpm(backup_dir, pkg, pkg_bak, rpms_list)
+            #bakrpm = []
+            #for f in rpms_list:
+            #    bakrpm.append(((pkg_bak, f), None))
+            #pool = threadpool.ThreadPool(len(rpms_list))
+            #requests = threadpool.makeRequests(self.backup_old_rpm, bakrpm)
+            #for req in requests:
+            #    pool.putRequest(req)
+            #pool.wait()
         except ValueError as e:
             log.error(e)
             return False
@@ -151,6 +171,19 @@ class RPMManager(object):
             return False
         return True
 
+    def copy_new_rpm(self, pkg):
+        """
+        copy rpm to repo
+        pkg: name of package
+        rpm: name of rpm file of pkg
+        """
+        cmd = "cp -p %s/%s/%s/%s/%s/*.rpm %s/%s/%s/:full/ && rm -rf %s/%s/%s/:full/*.src.rpm" \
+                    % (self.obs_project_root_path, self.obs_project, self.repo, \
+                    self.arch, pkg, self.obs_project_root_path, \
+                    self.rpms_to_repo_path, self.arch, self.obs_project_root_path, self.rpms_to_repo_path, self.arch)
+        log.debug("%s: %s" % (pkg, cmd))
+        self.pex.ssh_cmd(cmd)
+
     def copy_new_rpms_to_repo(self, pkg, rpms_list):
         """
         copy new rpms by package name to repo
@@ -158,27 +191,32 @@ class RPMManager(object):
         rpms_list: all rpms of package, type is list
         """
         log.debug(rpms_list)
-        for r in rpms_list:
-            cmd = "cp -p %s/%s/%s/%s/%s/%s %s/%s/%s/:full/" \
-                    % (self.obs_project_root_path, self.obs_project, self.repo, \
-                    self.arch, pkg, r, self.obs_project_root_path, \
-                    self.rpms_to_repo_path, self.arch)
-            log.debug("%s: %s" % (pkg, cmd))
-            ret = self.pex.ssh_cmd(cmd)
-            log.debug("%s: %s" % (pkg, ret))
+        self.copy_new_rpm(pkg)
         self.old_pkg_rpms[pkg] = rpms_list
-
+        
     def rpms_exists(self, rpms_list):
         """
         check rpms exists
         rpms_list:
         """
         try:
-            for r in rpms_list:
-                cmd = "find %s/%s/%s/:full/ -iname '%s'" % (
-                        self.obs_project_root_path, self.rpms_to_repo_path, self.arch, r)
+            tmp_list = [rpms_list[i:i + 500] for i in range(0, len(rpms_list), 500)]
+            for l in tmp_list:
+                cmd = """
+for r in %s
+do
+    ls %s/%s/%s/:full/ | grep "$r"
+    if [ $? -ne 0 ];then
+        echo "notfind"
+        break
+    else
+        echo "find"
+    fi
+done
+""" % (' '.join(l), self.obs_project_root_path, self.rpms_to_repo_path, self.arch)
                 ret = self.pex.ssh_cmd(cmd)
-                if r not in str(ret):
+                log.info(ret)
+                if "notfind" in str(ret):
                     return False
         except Exception as e:
             log.error(e)
@@ -198,12 +236,12 @@ class RPMManager(object):
         new_rpms_list = self.get_new_rpms_by_pkg(pkg)
         new_rpms_list.sort()
         if self.kwargs["all"] and new_rpms_list:
-            self.copy_new_rpms_to_repo(pkg, new_rpms_list)
             self.backup_old_rpms_by_pkg(pkg, old_rpms_list)
+            self.copy_new_rpms_to_repo(pkg, new_rpms_list)
         elif old_rpms_list != new_rpms_list and new_rpms_list:
             try:
-                self.copy_new_rpms_to_repo(pkg, new_rpms_list)
                 self.backup_old_rpms_by_pkg(pkg, old_rpms_list)
+                self.copy_new_rpms_to_repo(pkg, new_rpms_list)
             except Exception as e:
                 self.backup_old_rpms_by_pkg(pkg, new_rpms_list)
         else:
@@ -233,7 +271,7 @@ class RPMManager(object):
         if not self.pkgs:
             self.pkgs = list(set(list(set(os.popen("osc list %s" % self.obs_project).read().split("\n")) - set([''])) \
                     + list(self.old_pkg_rpms.keys())))
-        pool = threadpool.ThreadPool(10)
+        pool = threadpool.ThreadPool(20)
         requests = threadpool.makeRequests(self.update_pkg, self.pkgs)
         for req in requests:
             pool.putRequest(req)
