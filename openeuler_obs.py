@@ -110,6 +110,7 @@ par.add_argument("-pm", "--pckg_mgmt", default=False,
 par.add_argument("-rm", "--remt", default=None,
         help="Local path of release-management repository.", required=False)
 par.add_argument("-a", "--ALL_", default=False, help="update all obs repo rpms", required=False)
+par.add_argument("-cmp", "--compare", default=False, help="compare rpm", required=False)
 par.add_argument("-cpm", "--check_pckg_mgmt", default=False,
         help="check if there are any problems with the commi for release-management", required=False)
 
@@ -156,7 +157,8 @@ kw = {
         "obs_mail_notice": args.obs_mail_notice,
         "pckg_mgmt": args.pckg_mgmt,
         "release_management_path": args.remt,
-        "check_pckg_mgmt": args.check_pckg_mgmt
+        "check_pckg_mgmt": args.check_pckg_mgmt,
+        "compare": args.compare
         }
 
 run = Runner(**kw)
