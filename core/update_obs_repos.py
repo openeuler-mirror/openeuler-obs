@@ -53,6 +53,7 @@ class RPMManager(object):
         self.repo = self.kwargs["repo"]
         self.arch = self.kwargs["arch"]
         self.pkgs = self.kwargs["pkglist"]
+        self.compare = self.kwargs["compare"]
         self.old_pkg_rpms = {}
         self._set_rpms_to_repo()
         self.pex = Pexpect(self.kwargs["repo_server_user"], self.kwargs["repo_server_ip"], 
@@ -103,7 +104,6 @@ class RPMManager(object):
             cmd = "ls %s/%s/%s/%s/%s | grep 'rpm' | grep -v 'src.rpm'" \
                     % (self.obs_project_root_path, self.obs_project, self.repo, self.arch, pkg)
             ret = self.pex.ssh_cmd(cmd)
-            log.debug(ret)
             for p in ret:
                 p = str(p, encoding = 'utf8')
                 if "rpm" in p:
@@ -135,7 +135,6 @@ do
 done
 """ % (backup_dir, pkg, pkg_bak, ' '.join(l), self.obs_project_root_path, \
 self.rpms_to_repo_path, self.arch, pkg_bak)
-            log.info(cmd)
             self.pex.ssh_cmd(cmd)
 
     def backup_old_rpms_by_pkg(self, pkg, rpms_list):
@@ -149,14 +148,6 @@ self.rpms_to_repo_path, self.arch, pkg_bak)
             backup_dir =  os.path.join(self.obs_project_root_path, self.rpms_to_repo_path, "backup")
             pkg_bak = os.path.join(backup_dir, "%s-%s" % (pkg, t))
             self.backup_old_rpm(backup_dir, pkg, pkg_bak, rpms_list)
-            #bakrpm = []
-            #for f in rpms_list:
-            #    bakrpm.append(((pkg_bak, f), None))
-            #pool = threadpool.ThreadPool(len(rpms_list))
-            #requests = threadpool.makeRequests(self.backup_old_rpm, bakrpm)
-            #for req in requests:
-            #    pool.putRequest(req)
-            #pool.wait()
         except ValueError as e:
             log.error(e)
             return False
@@ -190,7 +181,6 @@ self.rpms_to_repo_path, self.arch, pkg_bak)
         pkg: name of package
         rpms_list: all rpms of package, type is list
         """
-        log.debug(rpms_list)
         self.copy_new_rpm(pkg)
         self.old_pkg_rpms[pkg] = rpms_list
         
@@ -215,13 +205,39 @@ do
 done
 """ % (' '.join(l), self.obs_project_root_path, self.rpms_to_repo_path, self.arch)
                 ret = self.pex.ssh_cmd(cmd)
-                log.info(ret)
-                if "notfind" in str(ret):
+                if "notfind" in str(ret) or "find" not in str(ret):
                     return False
         except Exception as e:
             log.error(e)
             return False
         return True
+
+    def compare_rpms(self, pkg):
+        """
+        compare new rpm and old rpm by --dump
+        """
+        cmd = """
+        rpms=`ls %s/%s/%s/%s/%s | grep '\.rpm' | grep -v '\.src.rpm' `
+        for r in $rpms
+        do
+            rpm1_sha=`rpm -q --dump %s/%s/%s/%s/%s/$r | awk '{print \$4}'`
+            rpm2_sha=`rpm -q --dump %s/%s/%s/:full/$r | awk '{print \$4}'`
+            if [ "${rpm1_sha}" == "${rpm2_sha}" ];then
+                echo "same"
+            else
+                echo "notsame"
+                break
+            fi
+        done
+        """ % (self.obs_project_root_path, self.obs_project, self.repo, self.arch, pkg,\
+                self.obs_project_root_path, self.obs_project, self.repo, self.arch, pkg, \
+                self.obs_project_root_path, self.rpms_to_repo_path, self.arch)
+        ret = self.pex.ssh_cmd(cmd)
+        if "notsame" in str(ret) or "same" not in str(ret):
+            return False
+        else:
+            log.debug("%s no difference" % pkg)
+            return True
 
     def update_pkg(self, pkg):
         """
@@ -235,7 +251,7 @@ done
             old_rpms_list = None
         new_rpms_list = self.get_new_rpms_by_pkg(pkg)
         new_rpms_list.sort()
-        if self.kwargs["all"] and new_rpms_list:
+        if self.kwargs["all"] == "True" and new_rpms_list:
             self.backup_old_rpms_by_pkg(pkg, old_rpms_list)
             self.copy_new_rpms_to_repo(pkg, new_rpms_list)
         elif old_rpms_list != new_rpms_list and new_rpms_list:
@@ -244,6 +260,10 @@ done
                 self.copy_new_rpms_to_repo(pkg, new_rpms_list)
             except Exception as e:
                 self.backup_old_rpms_by_pkg(pkg, new_rpms_list)
+        elif self.kwargs["compare"] == "True":
+            if not self.compare_rpms(pkg):
+                self.backup_old_rpms_by_pkg(pkg, old_rpms_list)
+                self.copy_new_rpms_to_repo(pkg, new_rpms_list)
         else:
             log.debug("%s all rpms are latest should do nothing" % pkg)
         if new_rpms_list:
@@ -271,7 +291,7 @@ done
         if not self.pkgs:
             self.pkgs = list(set(list(set(os.popen("osc list %s" % self.obs_project).read().split("\n")) - set([''])) \
                     + list(self.old_pkg_rpms.keys())))
-        pool = threadpool.ThreadPool(20)
+        pool = threadpool.ThreadPool(30)
         requests = threadpool.makeRequests(self.update_pkg, self.pkgs)
         for req in requests:
             pool.putRequest(req)
@@ -302,7 +322,6 @@ done
                 self.rpms_to_repo_path.split("/")[0], self.rpms_to_repo_path.split("/")[1], self.arch)
         log.debug(cmd)
         ret = self.pex.ssh_cmd(cmd)
-        log.debug(ret)
 
                     
 if __name__ == "__main__":

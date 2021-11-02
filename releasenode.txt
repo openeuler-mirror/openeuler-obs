@@ -1,3 +1,5 @@
+v1.3.9
+ - compare rpms by 'rpm -q --dump'
 v1.3.8
  - update method for rpm package archive
 v1.3.7
