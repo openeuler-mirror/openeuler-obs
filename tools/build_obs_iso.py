@@ -107,11 +107,23 @@ def start_jenkins_after_obs(args):
 
 
 def report(args):
+    cmd = """
+        osc results --csv %s -a aarch64 > arm 
+        osc results --csv %s -a x86_64 > x86 
+        f_arm=`cat arm| grep fail| wc -l` 
+        f_x86=`cat x86| grep fail| wc -l` 
+        u_arm=`cat arm| grep unres| wc -l`
+        u_x86=`cat x86| grep unres| wc -l` 
+        echo ${f_arm},${f_x86},${u_arm},${u_x86}
+        """ % (args.project, args.project)
+    ret = os.popen(cmd).read().replace("\n", "").split(",")
     kp =  KafkaProducerProxy([args.broker])
     uid = str(uuid.uuid1())
     kp.send(args.topic, key=uid, value={"obs_project": args.project, \
             "archive_start": args.project_start_time, "archive_end": args.project_end_time, \
-            "iso_start": args.iso_start_time, "iso_end": args.iso_end_time})
+            "iso_start": args.iso_start_time, "iso_end": args.iso_end_time, \
+            "build_failed_arm": ret[0], "build_failed_x86": ret[1], \
+            "build_unres_arm": ret[2], "build_unres_x86": ret[3]})
 
 
 if args.flag == "jenkins":
