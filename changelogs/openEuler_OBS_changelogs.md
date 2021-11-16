@@ -25,3 +25,4 @@
 | 5 | 2021-08-30  | obs代码 | 定位门禁构建时出现CPIO Archive Error | 参考 "changelog_05/bs_repserver" | 邓鹏 | 是 | changelog_05/bs_repserver|
 | 6 | 2021-09-18  | 配置变更 | openEuler中部分软件包由于构建的时候没有root权限，所以出现部分社区用例执行失败或者跳过的情况 | 修改配置支持libaio、multipath-tools、systemd使用root进行构建 | 黄堆荣 | 是 | |
 | 7 | 2021-11-11  | 配置变更 | openEuler中DPDK包由于构建的时候没有root权限，所以出现社区用例执行失败情况 | 修改配置支持DPDK使用root进行构建 | 吴昌盛 | 是 | |
+| 8 | 2021-11-16  | 配置变更 | openEuler中nftables包由于构建的时候没有root权限，所以出现社区用例执行失败情况 | 修改配置支持nftables使用root进行构建 | 孙苏皖 | 是 | |
