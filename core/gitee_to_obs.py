@@ -312,7 +312,8 @@ class CheckCode(object):
             try:
                 cmd = "cat {0}| grep spec".format(package)
                 data = os.popen(cmd).read()
-                str_find = '<a href="/src-openeuler/.*" title=.*>(.*.spec)</a>'
+                str_find = '<a title=.* href="/src-openeuler/.*">(.*.spec)</a>'
+                #str_find = '<a href="/src-openeuler/.*" title=.*>(.*.spec)</a>'
                 spec_files = re.findall(str_find, data)
                 log.info("%s - %s" % (package, spec_files))
             except SyntaxError as e:
@@ -380,7 +381,7 @@ class CheckCode(object):
             return True
         elif not gitee_spec:
             log.info("SPEC: can't not find package spec file from gitee")
-            return True
+            return False
         else:
             return False
 
@@ -401,7 +402,7 @@ class CheckCode(object):
         check all packages
         """
         if self.packages:
-            pool = threadpool.ThreadPool(10)
+            pool = threadpool.ThreadPool(30)
             reqs = threadpool.makeRequests(self.check, self.packages)
             for req in reqs:
                 pool.putRequest(req)
