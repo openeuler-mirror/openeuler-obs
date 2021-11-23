@@ -40,8 +40,9 @@ if len(args.from_project) != len(args.to_project):
     sys.exit(1)
 
 pckg_mgmt_yaml = os.path.join(os.getcwd(), "pckg-mgmt.yaml")
-pkgs_dict = {"packages": {"natural": [], "recycle": [], "delete": []}}
+pkgs_dict = {"packages": {"everything": {"baseos": [], "other": []},"epol": [], "recycle": [], "delete": []}}
 datestr = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S') 
+baseos_list = os.popen("cat baseos.list").read().split("\n")
 
 def write_yaml(dict_msg, file_path):
     with open(file_path, "w", encoding='utf-8') as f:
@@ -53,13 +54,36 @@ def create_dict(from_project, to_project, from_branch, to_branch):
     for pkg in packages:
         if not pkg:
             continue
-        pkgs_dict["packages"]["natural"].append({
-                "name": pkg, 
+        if pkg in baseos_list:
+            pkgs_dict["packages"]["everything"]["baseos"].append({
+                "name": pkg,
                 "branch_from": from_branch,
                 "branch_to": to_branch,
                 "obs_from": from_project,
                 "obs_to": to_project,
-                "date": datestr})
+                "change_pr":'',
+                "date": datestr
+                })
+        elif "Epol" in from_project:
+            pkgs_dict["packages"]["epol"].append({
+                "name": pkg,
+                "branch_from": from_branch,
+                "branch_to": to_branch,
+                "obs_from": from_project,
+                "obs_to": to_project,
+                "change_pr":'',
+                "date": datestr
+                })
+        else:
+            pkgs_dict["packages"]["everything"]["other"].append({
+                "name": pkg,
+                "branch_from": from_branch,
+                "branch_to": to_branch,
+                "obs_from": from_project,
+                "obs_to": to_project,
+                "change_pr":'',
+                "date": datestr
+                })
 
 
 def create_yaml():
