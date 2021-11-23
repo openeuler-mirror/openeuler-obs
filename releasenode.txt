@@ -1,3 +1,5 @@
+v1.4.0
+ - change strings which get from gitee api 
 v1.3.9
  - compare rpms by 'rpm -q --dump'
 v1.3.8
