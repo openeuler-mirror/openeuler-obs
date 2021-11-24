@@ -360,7 +360,7 @@ class CheckCode(object):
             return spec_files
         return None
 
-    def same_or_not(self, gitee_spec, obs_spec):
+    def same_or_not(self, gitee_spec, obs_spec, package):
         """
         check spec file between gitee spec file and obs spec file
         return: False - not same; True - same
@@ -379,10 +379,14 @@ class CheckCode(object):
                     log.info("diff-" + ret)
                     return False
             return True
+        elif not gitee_spec and not obs_spec:
+            log.info("%s has no script" % package)
+            return True
         elif not gitee_spec:
-            log.info("SPEC: can't not find package spec file from gitee")
+            log.error("%s no spec from gitee" % package)
             return False
-        else:
+        elif not obs_spec:
+            log.error("%s no spec from obs" % package)
             return False
 
     def check(self, package):
@@ -391,7 +395,7 @@ class CheckCode(object):
         """
         gitee_spec = self.get_gitee_spec(self.branch, package)
         obs_spec = self.get_obs_spec(self.project, package)
-        if self.same_or_not(gitee_spec, obs_spec):
+        if self.same_or_not(gitee_spec, obs_spec, package):
             log.info("codes of %s are same between gitee and obs" % package)
         else:
             self.not_same_packages.append(package)
