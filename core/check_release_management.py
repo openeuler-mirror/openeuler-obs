@@ -248,7 +248,6 @@ class CheckReleaseManagement(object):
         if del_msg:
             for pkg in yaml_msg['packages']['delete']:
                 del_name.append(pkg['name'])
-            log.debug("All delete rpms:{0}".format(del_name))
             if msg['name'] in del_name:
                 return True
         return False
@@ -355,6 +354,40 @@ class CheckReleaseManagement(object):
         else:
             return False
 
+    def _ensure_delete_tags(self, change_msg, yaml_old_msg, yaml_all_msg):
+        """
+        verify the rpm added to delete tag exists in the previous file
+        """
+        del_tag_rpm = {}
+        all_msg_rpm = {}
+        error_flag = False
+        change_file = change_msg.keys()
+        for change in change_file:
+            del_tag_rpm[change] = []
+            all_msg_rpm[change] = []
+            for msg in change_msg[change]:
+                if self._check_delete_tag(msg, yaml_all_msg[change]):
+                    del_tag_rpm[change].append(msg['name'])
+            if not del_tag_rpm[change]:
+                del del_tag_rpm[change]
+            for msg in yaml_old_msg[change]:
+                all_msg_rpm[change].append(msg['name'])
+        if not del_tag_rpm:
+            return
+        log.info("The Pr contain the rpm change in delete tag for {0}".format(del_tag_rpm))
+        info_dict = {}
+        for change in del_tag_rpm.keys():
+            info_dict[change] = []
+            for rpm in del_tag_rpm[change]:
+                if rpm not in all_msg_rpm[change]:
+                    error_flag = True
+                    info_dict[change].append(rpm)
+            if not info_dict[change]:
+                del info_dict[change]
+        if error_flag:
+            log.error("Check the delete group in the {0}!!!".format(info_dict))
+            raise SystemExit("ERROR:Please check your PR")
+
     def check_pckg_yaml(self):
         """
         check the obs_from branch_from in pckg-mgmt.yaml
@@ -369,6 +402,7 @@ class CheckReleaseManagement(object):
         self._check_rpms_integrity(old_yaml_msg, change_yaml_msg, change_file)
         change_msg_list = self._get_diff_msg(old_yaml_msg, change_yaml_msg, change_file)
         log.info(len(change_msg_list))
+        self._ensure_delete_tags(change_msg_list, old_yaml_msg, all_yaml_msg)
         self._check_key_in_yaml(change_msg_list, change_file)
         error_flag1 = self._check_pkg_from(self.meta_path, change_msg_list, change_file, all_yaml_msg)
         error_flag2 = self._check_date_time(change_msg_list, change_file)
