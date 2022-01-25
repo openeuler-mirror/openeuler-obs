@@ -81,7 +81,7 @@ class SyncPckgMgmt(object):
                     log.error("%s obs_to is error, please check yaml." % msg['name'])
         return flag
 
-    def _parse_yaml_msg(self, file_msg):
+    def _parse_yaml_msg(self, file_msg, yaml_type):
         """
         parse yaml file msg
         """
@@ -89,13 +89,30 @@ class SyncPckgMgmt(object):
         msg = []
         del_msg = []
         prj_pkg = {}
-        for pckg in file_msg['packages']['natural']:
-            tmp = {'pkgname': pckg['name'], 'branch_from': pckg['branch_from'],
-                    'branch_to': pckg['branch_to'], 'obs_from': pckg['obs_from'],
-                    'obs_to': pckg['obs_to']}
-            prj_pkg.setdefault(pckg['obs_to'], []).append(pckg['name'])
-            prj_pkg['branch'] = pckg['branch_to']
-            msg.append(tmp)
+        if yaml_type == "old":
+            for pckg in file_msg['packages']['natural']:
+                tmp = {'pkgname': pckg['name'], 'branch_from': pckg['branch_from'],
+                        'branch_to': pckg['branch_to'], 'obs_from': pckg['obs_from'],
+                        'obs_to': pckg['obs_to']}
+                prj_pkg.setdefault(pckg['obs_to'], []).append(pckg['name'])
+                prj_pkg['branch'] = pckg['branch_to']
+                msg.append(tmp)
+        else:
+            for label in file_msg['packages']['everything']:
+                for pckg in file_msg['packages']['everything'][label]:
+                    tmp = {'pkgname': pckg['name'], 'branch_from': pckg['branch_from'],
+                            'branch_to': pckg['branch_to'], 'obs_from': pckg['obs_from'],
+                            'obs_to': pckg['obs_to']}
+                    prj_pkg.setdefault(pckg['obs_to'], []).append(pckg['name'])
+                    prj_pkg['branch'] = pckg['branch_to']
+                    msg.append(tmp)
+            for pckg in file_msg['packages']['epol']:
+                tmp = {'pkgname': pckg['name'], 'branch_from': pckg['branch_from'],
+                        'branch_to': pckg['branch_to'], 'obs_from': pckg['obs_from'],
+                        'obs_to': pckg['obs_to']}
+                prj_pkg.setdefault(pckg['obs_to'], []).append(pckg['name'])
+                prj_pkg['branch'] = pckg['branch_to']
+                msg.append(tmp)
         for pckg in file_msg['packages']['recycle']:
             tmp = {'pkgname': pckg['name'], 'branch_from': pckg['branch_from'],
                     'branch_to': pckg['branch_to'], 'obs_from': pckg['obs_from'],
@@ -195,6 +212,22 @@ class SyncPckgMgmt(object):
             else:
                 log.error("copy %s service file failed!" % tmp['pkgname'])
     
+    def _add_prj_meta_pkgs_service(self, msg):
+        for tmp in msg:
+            prj_meta_br = os.path.join(self.obs_meta_path, "OBS_PRJ_meta/%s"
+                    % tmp['branch_to'])
+            if not os.path.exists(prj_meta_br):
+                os.makedirs(prj_meta_br)
+            prj_meta_path = os.path.join(prj_meta_br, tmp['obs_to'])
+            if not os.path.exists(prj_meta_path):
+                self._write_prj_meta_file(prj_meta_path, tmp['obs_to'])
+            selfbuild_meta_path = os.path.join(prj_meta_br,
+                    "%s:selfbuild:BaseOS" % tmp['obs_to'])
+            if not os.path.exists(selfbuild_meta_path):
+                if "Epol" not in tmp['obs_to']:
+                    self._write_selfbuild_meta_file(selfbuild_meta_path, tmp['obs_to'])
+            self._add_pkg_service(tmp)
+
     def _del_pkg(self, tmp):
         """
         delete obs_meta packages
@@ -257,26 +290,12 @@ class SyncPckgMgmt(object):
             if not yaml_dict:
                 log.info("%s file content is empty!" % name)
             else:
-                flag = self._check_pckg_yaml(yaml_dict, branch)
-                if flag:
-                    return -2
+                if "everything" in yaml_dict['packages'].keys():
+                    msg, del_msg, prj_pkg = self._parse_yaml_msg(yaml_dict, "new")
+                    self._add_prj_meta_pkgs_service(msg)
                 else:
-                    log.info("The contents of %s file is no problems." % file_path)
-                msg, del_msg, prj_pkg = self._parse_yaml_msg(yaml_dict)
-                for tmp in msg:
-                    prj_meta_br = os.path.join(self.obs_meta_path, "OBS_PRJ_meta/%s" 
-                            % tmp['branch_to'])
-                    if not os.path.exists(prj_meta_br):
-                        os.makedirs(prj_meta_br)
-                    prj_meta_path = os.path.join(prj_meta_br, tmp['obs_to'])
-                    if not os.path.exists(prj_meta_path):
-                        self._write_prj_meta_file(prj_meta_path, tmp['obs_to'])
-                    selfbuild_meta_path = os.path.join(prj_meta_br, 
-                            "%s:selfbuild:BaseOS" % tmp['obs_to'])
-                    if not os.path.exists(selfbuild_meta_path):
-                        if "Epol" not in tmp['obs_to']:
-                            self._write_selfbuild_meta_file(selfbuild_meta_path, tmp['obs_to'])
-                    self._add_pkg_service(tmp) 
+                    msg, del_msg, prj_pkg = self._parse_yaml_msg(yaml_dict, "old")
+                    self._add_prj_meta_pkgs_service(msg)
                 for tmp in del_msg:
                     self._del_pkg(tmp)
                 self._verify_meta_file(prj_pkg)
