@@ -147,8 +147,13 @@ class CheckReleaseManagement(object):
             if os.path.exists(file_path):
                 with open(file_path, 'r', encoding='utf-8')as f:
                     result = yaml.load(f, Loader=yaml.FullLoader)
-                all_pack_msg[yaml_path] = result['packages']['natural'] + \
-                        result['packages']['recycle'] + result['packages']['delete']
+                if "natural" in result['packages'].keys():
+                    all_pack_msg[yaml_path] = result['packages']['natural'] + \
+                            result['packages']['recycle'] + result['packages']['delete']
+                else:
+                    all_pack_msg[yaml_path] = result['packages']['everything']['baseos'] + \
+                            result['packages']['everything']['other'] + result['packages']['epol'] + \
+                            result['packages']['recycle'] + result['packages']['delete']
             else:
                 all_pack_msg[yaml_path] = []
         return all_pack_msg
@@ -184,11 +189,11 @@ class CheckReleaseManagement(object):
         check the key in your yaml compliance with rules
         """
         error_flag = ""
-        keylist = ['branch_from', 'obs_from', 'name', 'branch_to', 'obs_to', 'date']
+        keylist = ['branch_from', 'obs_from', 'name', 'branch_to', 'obs_to', 'date', 'change_pr']
         for change in change_file:
             log.info("{0} key check".format(change))
             for msg in all_pack_msg[change]:
-                if len(msg.keys()) == 6:
+                if len(msg.keys()) == 7 or len(msg.keys()) == 6:
                     for key in msg.keys():
                         if key not in keylist:
                             error_flag = True
