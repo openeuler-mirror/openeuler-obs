@@ -79,7 +79,7 @@ class TestCase(object):
                 my_cmd = "ls %s | grep %s" % (os.path.join(source_path,"openEuler"), pkg.replace('\n', ''))
                 if pkg.replace('\n', '') != scmd.ssh_cmd(my_cmd)[1].strip().decode('utf-8'):
                     assert False,  "{0} sync fail".format(pkg.replace('\n', ''))
-            elif "multi" in kw['branch']:
+            elif "Multi-Version" in kw['branch']:
                 my_cmd = "ls %s | grep %s" % (os.path.join(source_path,"multi_version",kw['branch']), pkg.replace('\n', ''))
                 if pkg.replace('\n', '') != scmd.ssh_cmd(my_cmd)[1].strip().decode('utf-8'):
                     assert False,  "{0} sync fail".format(pkg.replace('\n', ''))
@@ -113,7 +113,7 @@ class TestCase(object):
             my_cmd = "ls %s | grep %s" % (os.path.join(source_path,"openEuler"), kw['repository'])
             if kw['repository'] != scmd.ssh_cmd(my_cmd)[1].strip().decode('utf-8'):
                 assert False,  "{0} sync fail".format(kw['repository'])
-        elif "multi" in kw['branch']:
+        elif "Multi-Version" in kw['branch']:
             my_cmd = "ls %s | grep %s" % (os.path.join(source_path,"multi_version",kw['branch']), kw['repository'])
             if kw['repository'] != scmd.ssh_cmd(my_cmd)[1].strip().decode('utf-8'):
                 assert False,  "{0} sync fail".format(kw['repository'])
@@ -146,7 +146,7 @@ class TestCase(object):
             my_cmd = "ls %s | grep %s" % (os.path.join(source_path,"openEuler"), kw['repository'])
             if kw['repository'] != scmd.ssh_cmd(my_cmd)[1].strip().decode('utf-8'):
                 assert False,  "{0} sync fail".format(kw['repository'])
-        elif "multi" in kw['branch']:
+        elif "Multi-Version" in kw['branch']:
             my_cmd = "ls %s | grep %s" % (os.path.join(source_path,"multi_version",kw['branch']), kw['repository'])
             if kw['repository'] != scmd.ssh_cmd(my_cmd)[1].strip().decode('utf-8'):
                 assert False,  "{0} sync fail".format(kw['repository'])
@@ -181,7 +181,7 @@ class TestCase(object):
                 my_cmd = "ls %s | grep %s" % (os.path.join(source_path,"openEuler"), pkg.replace('\n', ''))
                 if pkg.replace('\n', '') != scmd.ssh_cmd(my_cmd)[1].strip().decode('utf-8'):
                     assert False,  "{0} sync fail".format(pkg.replace('\n', ''))
-            elif "multi" in kw['branch']:
+            elif "Multi-Version" in kw['branch']:
                 my_cmd = "ls %s | grep %s" % (os.path.join(source_path,"multi_version",kw['branch']), pkg.replace('\n', ''))
                 if pkg.replace('\n', '') != scmd.ssh_cmd(my_cmd)[1].strip().decode('utf-8'):
                     assert False,  "{0} sync fail".format(pkg.replace('\n', ''))

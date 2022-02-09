@@ -121,7 +121,7 @@ class SYNCCode(object):
         Get the obs project from gitee_branch
         """
         log.info("Start get the obs_project")
-        if "multi" in self.gitee_branch:
+        if "Multi-Version" in self.gitee_branch:
             path = self.meta_path + '/' + 'multi_version/' + self.gitee_branch
             log.info(path)
             cmd = "find %s -name %s | awk -F '/' '{print $5}'" % (path, self.repository)
@@ -153,8 +153,6 @@ class SYNCCode(object):
         """
         if self.gitee_branch == "master":
             source_path = "/srv/cache/obs/tar_scm/repo/next/openEuler"
-        elif "multi" in self.gitee_branch:
-            source_path = "/srv/cache/obs/tar_scm/repo/next/openEuler/multi_version/" + self.gitee_branch
         else:
             source_path = "/srv/cache/obs/tar_scm/repo/next/" + self.gitee_branch
         if self.repository == "CreateImage":

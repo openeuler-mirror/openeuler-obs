@@ -128,10 +128,8 @@ class OBSPkgManager(object):
         f.write('      <param name="scm">repo</param>\n')
         if branch_name == "master":
             f.write('      <param name="url">next/openEuler/%s</param>\n' % pkg)
-        if self.multi_version_dir == "":
+        else:    
             f.write('      <param name="url">next/%s/%s</param>\n' % (branch_name, pkg))
-        else:
-            f.write('      <param name="url">next/%s/%s/%s</param>\n' % (self.multi_version_dir, branch_name, pkg))
         f.write('    </service>\n')
         f.write('</services>\n')
         f.close()

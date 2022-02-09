@@ -104,7 +104,7 @@ class TestCase(object):
 <services>
     <service name=\\"tar_scm_kernel_repo\\">
       <param name=\\"scm\\">repo</param>
-      <param name=\\"url\\">next/multi-version/test-rock/mytest{0}</param>
+      <param name=\\"url\\">next/test-rock/mytest{0}</param>
     </service>
 </services>
             """.format(i)
