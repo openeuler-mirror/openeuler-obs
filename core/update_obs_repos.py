@@ -216,27 +216,38 @@ done
         """
         compare new rpm and old rpm by --dump
         """
+        old_rpm_path = f"{self.obs_project_root_path}/{self.rpms_to_repo_path}/{self.arch}/:full"
+        new_rpm_path = f"{self.obs_project_root_path}/{self.obs_project}/{self.repo}/{self.arch}/{pkg}"
         cmd = """
-        rpms=`ls %s/%s/%s/%s/%s | grep '\.rpm' | grep -v '\.src.rpm' `
+        rpms=`ls %s | grep '\.rpm' | grep -v '\.src.rpm' `
         for r in $rpms
         do
-            rpm1_sha=`rpm -q --dump %s/%s/%s/%s/%s/$r | awk '{print \$4}'`
-            rpm2_sha=`rpm -q --dump %s/%s/%s/:full/$r | awk '{print \$4}'`
-            if [ "${rpm1_sha}" == "${rpm2_sha}" ];then
-                echo "same"
-            else
-                echo "notsame"
+            new_rpm_sha=`rpm -q --dump %s/$r | awk '{print \$4}'`
+            old_rpm_sha=`rpm -q --dump %s/$r | awk '{print \$4}'`
+            if [ "${new_rpm_sha}" != "${old_rpm_sha}" ];then
+                echo "[$r] dump notsame"
+                break
+            fi
+            new_rpm_requires=`rpm -pq --requires --nosignature %s/$r`
+            old_rpm_requires=`rpm -pq --requires --nosignature %s/$r`
+            if [ "${new_rpm_requires}" != "${old_rpm_requires}" ];then
+                echo "[$r] requires notsame"
+                break
+            fi
+            
+            new_rpm_provides=`rpm -pq --provides --nosignature %s/$r`
+            old_rpm_provides=`rpm -pq --provides --nosignature %s/$r`
+            if [ "${new_rpm_provides}" != "${old_rpm_provides}" ];then
+                echo "[$r] provides notsame"
                 break
             fi
         done
-        """ % (self.obs_project_root_path, self.obs_project, self.repo, self.arch, pkg,\
-                self.obs_project_root_path, self.obs_project, self.repo, self.arch, pkg, \
-                self.obs_project_root_path, self.rpms_to_repo_path, self.arch)
+        """ % (new_rpm_path, new_rpm_path, old_rpm_path, new_rpm_path, old_rpm_path, new_rpm_path, old_rpm_path)
         ret = self.pex.ssh_cmd(cmd)
-        if "notsame" in str(ret) or "same" not in str(ret):
+        if "notsame" in str(ret):
             return False
         else:
-            log.debug("%s no difference" % pkg)
+            log.info(f"Both of dump/requires/provides of {pkg} rpms are same!")
             return True
 
     def update_pkg(self, pkg):
