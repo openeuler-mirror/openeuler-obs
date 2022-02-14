@@ -225,26 +225,32 @@ done
             new_rpm_sha=`rpm -q --dump %s/$r | awk '{print \$4}'`
             old_rpm_sha=`rpm -q --dump %s/$r | awk '{print \$4}'`
             if [ "${new_rpm_sha}" != "${old_rpm_sha}" ];then
-                echo "[$r] dump notsame"
+                echo "dump notsame"
                 break
             fi
             new_rpm_requires=`rpm -pq --requires --nosignature %s/$r`
             old_rpm_requires=`rpm -pq --requires --nosignature %s/$r`
             if [ "${new_rpm_requires}" != "${old_rpm_requires}" ];then
-                echo "[$r] requires notsame"
+                echo "requires notsame"
                 break
             fi
             
             new_rpm_provides=`rpm -pq --provides --nosignature %s/$r`
             old_rpm_provides=`rpm -pq --provides --nosignature %s/$r`
             if [ "${new_rpm_provides}" != "${old_rpm_provides}" ];then
-                echo "[$r] provides notsame"
+                echo "provides notsame"
                 break
             fi
         done
         """ % (new_rpm_path, new_rpm_path, old_rpm_path, new_rpm_path, old_rpm_path, new_rpm_path, old_rpm_path)
         ret = self.pex.ssh_cmd(cmd)
         if "notsame" in str(ret):
+            if 'dump' in str(ret):
+                log.warning(f"Dump of {pkg} rpms is not same!")
+            elif 'requires' in str(ret):
+                log.warning(f"Requires of {pkg} rpms is not same!")
+            elif 'provides' in str(ret):
+                log.warning(f"Provides of {pkg} rpms is not same!")
             return False
         else:
             log.info(f"Both of dump/requires/provides of {pkg} rpms are same!")
