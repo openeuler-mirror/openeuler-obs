@@ -114,6 +114,7 @@ class CheckMetaPull(object):
         """
         log.info("line:%s" % line)
         new_file_path = ''
+        complete_new_file_path = ''
         log_list = list(line.split())
         temp_log_type = log_list[0]
         if len(log_list) == 3:
@@ -125,11 +126,15 @@ class CheckMetaPull(object):
                 raise SystemExit("*******PLEASE CHECK YOUR PR*******")
             else:
                 new_file_path = list(line.split())[2]
+                complete_new_file_path = list(line.split())[2]
+                print ("**************************{}".format(new_file_path))
         elif len(log_list) == 2:
             if temp_log_type != "D":
                 new_file_path = list(line.split())[1]
+            complete_new_file_path = list(line.split())[1]
         log.info(new_file_path)
-        return new_file_path
+        print ('----------------------------------{}'.format(new_file_path))
+        return new_file_path, complete_new_file_path
 
     def _check_file_format(self, file_path):
         """
@@ -404,12 +409,15 @@ class CheckMetaPull(object):
             self._get_latest_obs_meta()
         changefile = self._get_change_file()
         changelist = []
+        complete_changelist = []
         for msg in changefile:
-            parse_git = self._parse_git_log(msg)
+            parse_git, complete_parse_git = self._parse_git_log(msg)
             if parse_git:
                 changelist.append(parse_git)
-        if changelist:
-            return changelist
+            if complete_parse_git:
+                complete_changelist.append(complete_parse_git)
+        if changelist or complete_changelist:
+            return changelist, complete_changelist
         else:
             log.info("Finish!!There are no file need to check")
             sys.exit()
@@ -526,12 +534,30 @@ class CheckMetaPull(object):
         log.info(service_path_list)
         self._check_service_meta(service_path_list)
 
+    def _check_pr_rule(self, release_manage, pr_file):
+        log.info("************************************** CHECK PR RULE**********************")
+        if release_manage:
+            for change_file in pr_file:
+                path_info = self._get_path_info(change_file)
+                if path_info[1] in release_manage:
+                    log.error("check pr rule failed repository path:{}".format(change_file))
+                else:
+                    log.info("check pr rule success repository path:{}".format(change_file))
+        else:
+            log.error("get release management data failed,please check network and token**********************")
+        log.info("************************************** CHECK PR RULE**********************")
+        log.info("check pr rule finished,please wait other check!!!")
+        return True
+
+
     def do_all(self):
         """
         make the get obs_meta change fuction and check fuction doing
         """
         if self.prid and self.token:
-            change_result = self._get_all_change_file()
+            release_management_data = self._release_management_tree()
+            change_result, complete_change_result = self._get_all_change_file()
+            pr_check_result = self._check_pr_rule(release_management_data, complete_change_result)
             check_result = self._check_service_meta(change_result)
         elif not self.prid and self.branch:
             self._clean()
@@ -540,11 +566,36 @@ class CheckMetaPull(object):
         else:
             log.error("ERROR_INPUT:PLEASE CHECK YOU INPUT")
 
+    def _release_management_tree(self):
+        log.info("************************************** GET RELASE MANAGEMENT DATA**********************")
+        release_management_data = []
+        sha_api_url = "https://gitee.com/api/v5/repos/openeuler/release-management/branches/master?access_token={}".format(self.token)
+        sha_value = self._gitee_api_request(sha_api_url)['commit'].get('sha', '')
+        if sha_value:
+            api_url = "https://gitee.com/api/v5/repos/openeuler/release-management/git/trees/{}?access_token={}".format(sha_value, self.token)
+            release_manage_value = self._gitee_api_request(api_url)['tree']
+            for current_file in release_manage_value:
+                if current_file['type'] == 'tree':
+                    release_management_data.append(current_file['path'])
+        log.info("************************************** GET RELASE MANAGEMENT DATA**********************")
+        return release_management_data
+
+    def _gitee_api_request(self, url):
+        """
+        gitee api interface
+        """
+        try:
+            response = requests.request(method='get', url=url)
+            response_value = response.json()
+            return response_value
+        except Exception as e:
+            log.error("error to request {}".format(url))
+
 if __name__ == "__main__":
     kw = {}
-    kw['pr_id'] = "780"
+    kw['pr_id'] = "1282"
     kw['branch'] = ""
-    kw['access_token'] = ""
+    kw['access_token'] = "e91ca14f2d98cf2eb0dbf3e96d4dd79a"
     kw['obs_meta_path'] = ""
     check = CheckMetaPull(**kw)
     check.do_all()
