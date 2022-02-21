@@ -535,19 +535,25 @@ class CheckMetaPull(object):
         self._check_service_meta(service_path_list)
 
     def _check_pr_rule(self, release_manage, pr_file):
+        """
+        check openeuler_meta pull request
+        """
         log.info("************************************** CHECK PR RULE**********************")
+        failed_flag = []
         if release_manage:
             for change_file in pr_file:
                 path_info = self._get_path_info(change_file)
                 if path_info[1] in release_manage:
                     log.error("check pr rule failed repository path:{}".format(change_file))
+                    failed_flag.append('yes')
                 else:
                     log.info("check pr rule success repository path:{}".format(change_file))
+            if failed_flag:
+                raise SystemExit("*******PLEASE CHECK YOUR PR*******")
         else:
             log.error("get release management data failed,please check network and token**********************")
         log.info("************************************** CHECK PR RULE**********************")
         log.info("check pr rule finished,please wait other check!!!")
-        return True
 
 
     def do_all(self):
@@ -567,6 +573,9 @@ class CheckMetaPull(object):
             log.error("ERROR_INPUT:PLEASE CHECK YOU INPUT")
 
     def _release_management_tree(self):
+        """
+        get release_management tree
+        """
         log.info("************************************** GET RELASE MANAGEMENT DATA**********************")
         release_management_data = []
         sha_api_url = "https://gitee.com/api/v5/repos/openeuler/release-management/branches/master?access_token={}".format(self.token)
@@ -590,12 +599,3 @@ class CheckMetaPull(object):
             return response_value
         except Exception as e:
             log.error("error to request {}".format(url))
-
-if __name__ == "__main__":
-    kw = {}
-    kw['pr_id'] = "1282"
-    kw['branch'] = ""
-    kw['access_token'] = "e91ca14f2d98cf2eb0dbf3e96d4dd79a"
-    kw['obs_meta_path'] = ""
-    check = CheckMetaPull(**kw)
-    check.do_all()
