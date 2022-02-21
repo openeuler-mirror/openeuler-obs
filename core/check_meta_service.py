@@ -127,13 +127,11 @@ class CheckMetaPull(object):
             else:
                 new_file_path = list(line.split())[2]
                 complete_new_file_path = list(line.split())[2]
-                print ("**************************{}".format(new_file_path))
         elif len(log_list) == 2:
             if temp_log_type != "D":
                 new_file_path = list(line.split())[1]
             complete_new_file_path = list(line.split())[1]
         log.info(new_file_path)
-        print ('----------------------------------{}'.format(new_file_path))
         return new_file_path, complete_new_file_path
 
     def _check_file_format(self, file_path):
