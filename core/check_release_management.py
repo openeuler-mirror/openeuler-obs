@@ -139,6 +139,8 @@ class CheckReleaseManagement(object):
         """
         get the pkg msg in pckg-mgmt.yaml
         """
+        error_pkg = {}
+        error_flag = False
         if rollback == True:
             self._rollback_get_msg(manage_path)
         all_pack_msg = {}
@@ -156,6 +158,15 @@ class CheckReleaseManagement(object):
                             result['packages']['recycle'] + result['packages']['delete']
             else:
                 all_pack_msg[yaml_path] = []
+            error_pkg[yaml_path] = []
+            for pkg_info in all_pack_msg[yaml_path]:
+                if ' ' in pkg_info['name']:
+                    error_name = pkg_info['name']
+                    error_flag = True
+                    error_pkg[yaml_path].append(error_name)
+        if error_flag:
+            log.error("as follows pkgs {0} space in name".format(error_pkg))
+            raise SystemExit("ERROR: Please check yaml pkg name")
         return all_pack_msg
 
     def _check_rpms_integrity(self, old_pack_msg, new_pack_msg, yaml_path_list):
@@ -420,7 +431,7 @@ if __name__ == "__main__":
     kw = {"branch":"master",
             "gitee_user":"",
             "gitee_pwd":"",
-            "pr_id":"108",
+            "pr_id":"",
             "obs_meta_path":"***",
             "release_management_path":"***"}
     check = CheckReleaseManagement(**kw)
