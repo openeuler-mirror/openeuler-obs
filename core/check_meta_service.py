@@ -538,15 +538,18 @@ class CheckMetaPull(object):
         """
         log.info("************************************** CHECK PR RULE**********************")
         failed_flag = []
+        failed_msg = []
         if release_manage:
             for change_file in pr_file:
                 path_info = self._get_path_info(change_file)
                 if path_info[1] in release_manage:
                     log.error("check pr rule failed repository path:{}".format(change_file))
                     failed_flag.append('yes')
+                    failed_msg.append(path_info[1])
                 else:
                     log.info("check pr rule success repository path:{}".format(change_file))
             if failed_flag:
+                log.error("you can not pull request in branch:{}".format(failed_msg))
                 raise SystemExit("*******PLEASE CHECK YOUR PR*******")
         else:
             log.error("get release management data failed,please check network and token**********************")
@@ -580,10 +583,11 @@ class CheckMetaPull(object):
         sha_value = self._gitee_api_request(sha_api_url)['commit'].get('sha', '')
         if sha_value:
             api_url = "https://gitee.com/api/v5/repos/openeuler/release-management/git/trees/{}?access_token={}".format(sha_value, self.token)
-            release_manage_value = self._gitee_api_request(api_url)['tree']
-            for current_file in release_manage_value:
-                if current_file['type'] == 'tree':
-                    release_management_data.append(current_file['path'])
+            release_manage_value = self._gitee_api_request(api_url).get('tree','')
+            if release_manage_value:
+                for current_file in release_manage_value:
+                    if current_file['type'] == 'tree':
+                        release_management_data.append(current_file['path'])
         log.info("************************************** GET RELASE MANAGEMENT DATA**********************")
         return release_management_data
 
@@ -591,9 +595,15 @@ class CheckMetaPull(object):
         """
         gitee api interface
         """
-        try:
-            response = requests.request(method='get', url=url)
-            response_value = response.json()
-            return response_value
-        except Exception as e:
-            log.error("error to request {}".format(url))
+        retries = 0
+        while retries < 5:
+            log.info("try to request data from gitee {}".format(retries))
+            response = requests.get(url,timeout=3)
+            if response.status_code == 200:
+                response_value = response.json()
+                return response_value
+            else:
+                retries += 1
+                if retries == 5:
+                    log.error("***************Get Request Data From Gitee ERROR***************")
+                    raise SystemExit("*******error request data from gitee,please wait and retry*******")
