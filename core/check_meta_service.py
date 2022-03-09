@@ -544,15 +544,16 @@ class CheckMetaPull(object):
                 path_info = self._get_path_info(change_file)
                 if path_info[1] in release_manage:
                     log.error("check pr rule failed repository path:{}".format(change_file))
+                    obs_project_name = change_file.split('/')[1]
                     failed_flag.append('yes')
-                    failed_msg.append(path_info[1])
+                    failed_msg.append(obs_project_name)
                 else:
                     log.info("check pr rule success repository path:{}".format(change_file))
             if failed_flag:
-                log.error("you can not pull request in branch:{}".format(failed_msg))
+                log.error("you can not pull request in branch:{},Please refer to this issue:https://gitee.com/openeuler/release-management/issues/I4U2VN?from=project-issue".format(failed_msg))
                 raise SystemExit("*******PLEASE CHECK YOUR PR*******")
         else:
-            log.error("get release management data failed,please check network and token**********************")
+            log.error("get release management data failed,please check network and toke n**********************")
         log.info("************************************** CHECK PR RULE**********************")
         log.info("check pr rule finished,please wait other check!!!")
 
