@@ -580,10 +580,10 @@ class CheckMetaPull(object):
         log.info("************************************** GET RELASE MANAGEMENT DATA**********************")
         release_management_data = []
         sha_api_url = "https://gitee.com/api/v5/repos/openeuler/release-management/branches/master?access_token={}".format(self.token)
-        sha_value = self._gitee_api_request(sha_api_url)['commit'].get('sha', '')
+        sha_value = self._gitee_api_request(sha_api_url,'shav')
         if sha_value:
             api_url = "https://gitee.com/api/v5/repos/openeuler/release-management/git/trees/{}?access_token={}".format(sha_value, self.token)
-            release_manage_value = self._gitee_api_request(api_url).get('tree','')
+            release_manage_value = self._gitee_api_request(api_url,'manage')
             if release_manage_value:
                 for current_file in release_manage_value:
                     if current_file['type'] == 'tree':
@@ -591,18 +591,24 @@ class CheckMetaPull(object):
         log.info("************************************** GET RELASE MANAGEMENT DATA**********************")
         return release_management_data
 
-    def _gitee_api_request(self, url):
+    def _gitee_api_request(self, url,flag):
         """
         gitee api interface
         """
         retries = 0
+        success = False
         while retries < 5:
-            log.info("try to request data from gitee {}".format(retries))
-            response = requests.get(url,timeout=3)
-            if response.status_code == 200:
-                response_value = response.json()
-                return response_value
-            else:
+            try:
+                log.info("try to request data from gitee {}".format(retries))
+                response = requests.request(method='get', url=url)
+                if flag == 'shav':
+                    response_value = response.json()['commit']['sha']
+                    return response_value
+                else:
+                    response_value = response.json()['tree']
+                    return response_value
+            except Exception as e:
+                log.info("try to request data from gitee {} failed,retry!!!".format(retries))
                 retries += 1
                 if retries == 5:
                     log.error("***************Get Request Data From Gitee ERROR***************")
