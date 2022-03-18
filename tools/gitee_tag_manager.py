@@ -114,23 +114,22 @@ class GiteeTagManager:
         """pkg add tag"""
         logging.info("start add tag for package: {}".format(pkg))
         tag_flag = False
-        os.chdir(pkg_path)
 
         # 1. tag already exist
-        _, tags, _ = self.run("git tag")
+        _, tags, _ = self.run(f"cd {pkg_path} && git tag && cd - > /dev/null")
         if self.tag_name in tags:
             logging.warning("package: {} tag already exist!".format(pkg))
             tag_flag = True
             return tag_flag
 
         # 2. add tag
-        code_tag, _, _ = self.run("git tag -a {} -m 'new tag'".format(self.tag_name))
-        code_push, _, _ = self.run("git push origin {}".format(self.tag_name))
-        if code_tag or code_push:
+        cmd = f"cd {pkg_path} && git tag -a {self.tag_name} -m 'new tag' && git push origin {self.tag_name} && cd - > /dev/null"
+        code_push, _, _ = self.run(cmd)
+        if code_push:
             return tag_flag
 
         # 3. check result
-        _, tags, _ = self.run("git tag")
+        _, tags, _ = self.run(f"cd {pkg_path} && git tag && cd - > /dev/null")
         if self.tag_name in tags:
             logging.info("package: {} add tag: {} ok!".format(pkg, self.tag_name))
             tag_flag = True
@@ -146,7 +145,6 @@ class GiteeTagManager:
         """add or delete tag for pkg"""
         pkg_path = os.path.join(temp_path, pkg)
         tag_flag = True
-        os.chdir(pkg_path)
         if self.tag_manage_type.lower() == "add":
             if not self.add_tag(pkg, pkg_path):
                 logging.error("pkg: {} add tag: {} failed!".format(pkg, self.tag_name))
