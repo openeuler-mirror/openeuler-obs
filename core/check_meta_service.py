@@ -366,6 +366,9 @@ class CheckMetaPull(object):
         """
         check the pkg whether the branch is protected
         """
+        # LoongArch branch does not check protected
+        if "loongarch" in change_path.lower():
+            return
         path_list = change_path.split('/')
         if "multi" in path_list[0] or "Multi" in path_list[0]:
             branch = path_list[1]
