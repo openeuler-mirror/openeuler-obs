@@ -97,14 +97,17 @@ class GiteeTagManager:
         clone_cmd = "git clone --depth=1 https://%s:%s@gitee.com/src-openeuler/%s -b %s %s" % (
             self.gitee_user, self.gitee_pwd, pkg, self.branch, pkg_path)
         pull_cmd = "git -C %s pull" % pkg_path
-        for i in range(5):
-            self.run(clone_cmd)
-            _, out, err = self.run(pull_cmd)
-            if ("Already up to date" in out) or ("Already up to date" in err):
-                clone_flag = True
-                break
-            else:
-                self.run("rm -rf {}".format(pkg_path))
+        try:
+            for i in range(5):
+                self.run(clone_cmd)
+                _, out, err = self.run(pull_cmd)
+                if ("Already up to date" in out) or ("Already up to date" in err):
+                    clone_flag = True
+                    break
+                else:
+                    self.run("rm -rf {}".format(pkg_path))
+        except Exception as e:
+            self.run("rm -rf {}".format(temp_path))
         logging.info("finish clone package: {}".format(pkg))
         if (not clone_flag) and (os.path.exists(temp_path)):
             shutil.rmtree(temp_path)
@@ -168,7 +171,6 @@ class GiteeTagManager:
         except Exception as e:
             logging.error("clone pkg: {} Exception: {}!".format(pkg, e))
             self.failed_list.append(pkg)
-            self.run("rm -rf {}".format(temp_path))
             return
 
         # 2. tag manage
@@ -179,7 +181,6 @@ class GiteeTagManager:
         except Exception as e:
             logging.error("tag pkg: {} Exception: {}!".format(pkg, e))
             self.failed_list.append(pkg)
-            self.run("rm -rf {}".format(temp_path))
 
     def manage(self):
         """tag manager main function"""
