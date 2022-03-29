@@ -159,10 +159,15 @@ class SYNCCode(object):
             log.error("The <<CreateImage>> packages does not need to be sync!!!")
             return False
         elif self.repository == "kernel":
+            tag_path = "%s/kernel/SOURCE" % source_path
+            ssh_cmd = "if [ -d %s ];then echo 'exist';else echo 'need to clone';fi" % tag_path
+            repository_exist = self.cmd.ssh_cmd(ssh_cmd)
+            repository_exist = str(repository_exist[1].strip()).split("'")[1]
+            if repository_exist != "exist":
+                clone_result = self._git_clone(self.repository, self.gitee_branch, f"{source_path}/kernel")
             pull_result = str(self.cmd.ssh_cmd("git -C %s/kernel pull" % source_path)
                     [1].strip()).split("'")[1]
             log.info(pull_result)
-            tag_path = "%s/kernel/SOURCE" % source_path
             kernel_tags = str(self.cmd.ssh_cmd("cat %s" % tag_path)[1].strip()).split("'")[1]
             log.info(kernel_tags)
             open_kernel_path = "%s/openEuler-kernel/kernel" % source_path
@@ -170,16 +175,20 @@ class SYNCCode(object):
             log.info(open_kernel_git)
             ssh_rm_result = self.cmd.ssh_cmd("rm -rf %s" % open_kernel_path)
             log.info(ssh_rm_result)
-            ssh_clone_result = self.cmd.ssh_cmd("git lfs clone --depth=1 %s -b %s %s" % (open_kernel_git,
-                kernel_tags, open_kernel_path), 600)
-            pull_result_last = str(self.cmd.ssh_cmd('git -C %s pull' % open_kernel_path)[1].strip()).split("'")[1]
-            if "Already" in pull_result_last:
-                log.info(pull_result_last)
-                log.info("kernel gitee pull success")
-                return True
-            else:
-                log.error("kernel gitee pull failed")
-                return False
+            for i in range(5):
+                ssh_clone_result = self.cmd.ssh_cmd("git lfs clone --depth=1 %s -b %s %s" % (open_kernel_git,
+                    kernel_tags, open_kernel_path), 600)
+                pull_result_last = str(self.cmd.ssh_cmd('git -C %s pull' % open_kernel_path)[1].strip()).split("'")[1]
+                if "Already" in pull_result_last:
+                    log.info(pull_result_last)
+                    log.info("kernel gitee pull success")
+                    return True
+                else:
+                    clear_repo = self.cmd.ssh_cmd("rm -rf %s" % open_kernel_path)
+                    log.info("clear_repo: %s" % clear_repo)
+                    continue
+            log.error("kernel gitee pull failed")
+            return False
         else:
             rpm_path = source_path + '/' + self.repository
             ssh_cmd = "if [ -d %s ];then echo 'exist';else echo 'need to clone';fi" % rpm_path
