@@ -25,6 +25,7 @@ from common.log_obs import log
 from xml.etree import ElementTree as ET
 from bs4 import BeautifulSoup
 import xml.dom.minidom
+from common.parser_config import ParserConfigIni
 
 class CheckMetaPull(object):
     """
@@ -46,6 +47,8 @@ class CheckMetaPull(object):
         self.current_path = os.getcwd()
         self.check_error = []
         self.meta_path = self.kwargs['obs_meta_path']
+        par = ParserConfigIni()
+        self.obs_ignored_package = par.get_obs_ignored_package()
 
     def _clean(self):
         """
@@ -166,6 +169,27 @@ class CheckMetaPull(object):
         log.info("ALL_URL:%s" % url_list)
         return url_list
 
+    def _get_url_info_new(self, pkg_path):
+        """
+        get pkg_name and pkg_branch from service file for new service content
+        """
+        url_list = []
+        revision_list = []
+        path_info = self._get_path_info(pkg_path)
+        with open(pkg_path, "r") as f:
+            log.info('\n' + f.read())
+        dom = xml.dom.minidom.parse(pkg_path)
+        root = dom.documentElement
+        param_lines = root.getElementsByTagName('param')
+        for url in param_lines:
+            if url.getAttribute("name") == "url":
+                url_list.append(url.firstChild.data.strip('/'))
+            elif url.getAttribute("name") == "revision":
+                revision_list.append(url.firstChild.data.strip('/'))
+        log.info("ALL_URL:%s" % url_list)
+        log.info("ALL_REVISION:%s" % revision_list)
+        return url_list,revision_list
+
     def _get_path_info(self, pkg_path):
         """
         get pkg_name and pkg_branch from change path
@@ -192,6 +216,22 @@ class CheckMetaPull(object):
             error_flag = "yes"
             return error_flag
 
+    def _check_correspond_from_service_new(self, **info):
+        """
+        Distingguish check pkg_name between different branch for new service content
+        """
+        error_flag = ""
+        if info['pkg_url'] == "master" and len(list(set(info['ser_branch']))) == 1:
+            error_flag = self._pkgname_check(info['pkg_name'], info['ser_name'])
+        elif list(set(info['ser_branch']))[0] == info['pkg_url'] and len(list(set(info['ser_branch']))) == 1:
+            error_flag = self._pkgname_check(info['pkg_name'], info['ser_name'])
+        else:
+            log.error("**************_Service URL ERROR*****************")
+            log.error("FAILED:Please check the url in your %s _service again"
+                    % info['pkg_name'])
+            error_flag = "yes"
+        return error_flag
+
     def _check_correspond_from_service(self, **info):
         """
         Distingguish check pkg_name between different branch
@@ -214,33 +254,65 @@ class CheckMetaPull(object):
             error_flag = "yes"
         return error_flag
 
+    def parse_all_info(self,pkg_path):
+        service_name = []
+        service_branch = []
+        service_next = []
+        url_list = self._get_url_info(pkg_path)
+        for all_url in url_list:
+            service_next.append(all_url.split('/')[0])
+            service_name.append(all_url.split('/')[-1])
+            service_branch.append(all_url.split('/')[-2])
+        path_info = self._get_path_info(pkg_path)
+        log.info("Url_Next:%s" % service_next)
+        log.info("Pkgname_in_Service:%s" % service_name)
+        log.info("pkgbranch_in_Service:%s" % service_branch)
+        log.info("Pkgname_in_Obe_meta_path:%s" % path_info[0])
+        log.info("Pkgbranch_in_Obs_meta_path:%s" % path_info[1])
+        all_info = {'ser_branch':service_branch, 'pkg_url':path_info[1],
+            'ser_next':service_next, 'pkg_name':path_info[0],
+            'ser_name':service_name}
+        return all_info
+
+    def parse_all_info_new(self,pkg_path):
+        service_name = []
+        service_branch = []
+        url_list,revision_list = self._get_url_info_new(pkg_path)
+        for all_url in url_list:
+            head,sep,tail = all_url.split('/')[1].partition('.')
+            service_name.append(head)
+        for all_revision in revision_list:
+            service_branch.append(all_revision)
+        path_info = self._get_path_info(pkg_path)
+        log.info("Pkgname_in_Service:%s" % service_name)
+        log.info("pkgbranch_in_Service:%s" % service_branch)
+        log.info("Pkgname_in_Obs_meta_path:%s" % path_info[0])
+        log.info("Pkgbranch_in_Obs_meta_path:%s" % path_info[1])
+        all_info = {'ser_branch':service_branch, 'pkg_url':path_info[1], 'pkg_name':path_info[0], 'ser_name':service_name}
+        return all_info
+
     def _check_pkg_services(self, pkg_path):
         """
         Check the format of the service file and the correctness of its URL
         """
-        service_name = []
-        service_branch = []
-        service_next = []
         error_flag2 = ""
         error_flag3 = ""
         os.chdir("%s/obs_meta" % self.current_path)
         error_flag1 = self._check_file_format(pkg_path)
         if error_flag1 != "yes":
-            url_list = self._get_url_info(pkg_path)
-            for all_url in url_list:
-                service_next.append(all_url.split('/')[0])
-                service_name.append(all_url.split('/')[-1])
-                service_branch.append(all_url.split('/')[-2])
             path_info = self._get_path_info(pkg_path)
-            log.info("Url_Next:%s" % service_next)
-            log.info("Pkgname_in_Service:%s" % service_name)
-            log.info("pkgbranch_in_Service:%s" % service_branch)
-            log.info("Pkgname_in_Obe_meta_path:%s" % path_info[0])
-            log.info("Pkgbranch_in_Obs_meta_path:%s" % path_info[1])
-            all_info = {'ser_branch':service_branch, 'pkg_url':path_info[1],
-                'ser_next':service_next, 'pkg_name':path_info[0],
-                'ser_name':service_name}
-            error_flag2 = self._check_correspond_from_service(**all_info)
+            meta_pkg_name = path_info[0]
+            meta_pkg_branch = path_info[1]
+            if meta_pkg_branch != 'master':
+                all_info = self.parse_all_info(pkg_path)
+                error_flag2 = self._check_correspond_from_service(**all_info)
+            else:
+                if meta_pkg_name in self.obs_ignored_package:
+                    all_info = self.parse_all_info(pkg_path)
+                    error_flag2 = self._check_correspond_from_service(**all_info)
+                else:
+                    all_info = self.parse_all_info_new(pkg_path)
+                    error_flag2 = self._check_correspond_from_service_new(**all_info)
         if self.token:
             error_flag3 = self._detect_protect_branch(pkg_path)
         error_flag4 = self._one_pkg_one_branch(pkg_path)
@@ -539,7 +611,7 @@ class CheckMetaPull(object):
         """
         check openeuler_meta pull request
         """
-        log.info("************************************** CHECK PR RULE**********************")
+        log.info("******CHECK PR RULE*********")
         failed_flag = []
         failed_msg = []
         if release_manage:
@@ -556,8 +628,8 @@ class CheckMetaPull(object):
                 log.error("you can not pull request in branch:{},Please refer to this issue:https://gitee.com/openeuler/release-management/issues/I4U2VN?from=project-issue".format(failed_msg))
                 raise SystemExit("*******PLEASE CHECK YOUR PR*******")
         else:
-            log.error("get release management data failed,please check network and toke n**********************")
-        log.info("************************************** CHECK PR RULE**********************")
+            log.error("get release management data failed,please check network and token")
+        log.info("******CHECK PR RULE********")
         log.info("check pr rule finished,please wait other check!!!")
 
 

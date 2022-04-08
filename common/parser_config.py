@@ -66,6 +66,8 @@ class ParserConfigIni(object):
         self._init_gitee_repository()
         self._init_obs_repository()
         self._init_obs_prj_root_path()
+        self._init_obs_ignored_package()
+        self._init_obs_include_project()
 
     def _init_branch_list(self):
         """
@@ -109,6 +111,34 @@ class ParserConfigIni(object):
         return: ignored repo list
         """
         return self.ignored_repos
+
+    def _init_obs_ignored_package(self):
+        """
+        init ignored package list
+        return: None
+        """
+        self.obs_ignored_packages = self.config.get("obs_ignore_package", "name").split(" ")
+
+    def get_obs_ignored_package(self):
+        """
+        get ignored package
+        return: ignored package list
+        """
+        return self.obs_ignored_packages
+
+    def _init_obs_include_project(self):
+        """
+        init include project list
+        return: None
+        """
+        self.obs_include_projects = self.config.get("obs_include_project", "name").split(" ")
+
+    def get_obs_include_project(self):
+        """
+        get include project
+        return: include project list
+        """
+        return self.obs_include_projects
 
     def _init_package_info_file(self):
         """
