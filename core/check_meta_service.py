@@ -49,11 +49,13 @@ class CheckMetaPull(object):
 
     def _clean(self):
         """
-        Cleanup the current directory of obs_meta
+        Cleanup the current directory of obs_meta and community
         """
-        cmd = "if [ -d obs_meta ];then rm -rf obs_meta && echo 'Finish clean the obs_meta';fi"
-        rm_result = os.popen(cmd).readlines()
-        log.info(rm_result)
+        del_repo = ['obs_meta','community']
+        for repo in del_repo:
+            cmd = "if [ -d {0} ];then rm -rf {0} && echo 'Finish clean the {0}';fi".format(repo)
+            rm_result = os.popen(cmd).readlines()
+            log.info(rm_result)
 
     def _get_latest_obs_meta(self):
         """
@@ -408,6 +410,7 @@ class CheckMetaPull(object):
         else:
             self._clean()
             self._get_latest_obs_meta()
+            self._get_latest_community()
         changefile = self._get_change_file()
         changelist = []
         complete_changelist = []
@@ -535,6 +538,66 @@ class CheckMetaPull(object):
         log.info(service_path_list)
         self._check_service_meta(service_path_list)
 
+    def get_private_path_pkgname(self,private_sig_path):
+        '''
+        get private sig pkg name from sig path
+        params
+        private_sig_path : private sig path in community repo
+        '''
+        private_sig_pkgs = []
+        for filepath,dirnames,filenames in os.walk(private_sig_path):
+            for file in filenames:
+                head,sep,tail = file.partition('.')
+                private_sig_pkgs.append(head)
+        return private_sig_pkgs
+
+    def _check_private_sig_pkg(self,change_file):
+        '''
+        check add pkg include in private sig 
+        params
+        chang_file : modified file abs path
+        '''
+        log.info("******CHECK PR PRIVATE SIG PKGNAME*********")
+        private_sig_path = os.path.join(self.current_path, "community",
+                "sig", "Private","src-openeuler")
+        private_sig_pkgs = self.get_private_path_pkgname(private_sig_path)
+        failed_flag = False
+        failed_msg = []
+        for file in change_file:
+            path_info = self._get_path_info(file)
+            pkg_name = path_info[0]
+            if pkg_name in private_sig_pkgs:
+                log.error("check failed this pkg:{} in private sig".format(pkg_name))
+                failed_msg.append(pkg_name)
+                failed_flag = True
+            else:
+                log.info("check success this pkg:{} not in private sig".format(pkg_name))
+        if failed_flag:
+            log.error("this below pkgs in private sig:{}".format(failed_msg))
+            raise SystemExit("*******CHECK PR PRIVATE SIG PKGNAME ERROR:please check your PR*******")
+        log.info("******CHECK PR PRIVATE SIG PKGNAME*********")
+
+
+    def _get_latest_community(self):
+        """
+        Get the latest community repo
+        """
+        log.info("Get the latest community")
+        clone_cmd = "git clone --depth=1 https://gitee.com/openeuler/community"
+        for x in range(5):
+            log.info("Try to clone %s" % x)
+            pull_result = ""
+            os.system(clone_cmd)
+            pull_result = os.popen("if [ -d community ];then echo 'Already up to date'; \
+                    else echo 'Clone error';fi").readlines()
+            if "Already" in pull_result[0]:
+                log.info(pull_result)
+                log.info("Success to clone community")
+                return
+            else:
+                os.system("if [ -d community ];then rm -rf community;fi")
+        raise SystemExit("*******community-clone-error:please check your net*******")
+
     def _check_pr_rule(self, release_manage, pr_file):
         """
         check openeuler_meta pull request
@@ -569,6 +632,7 @@ class CheckMetaPull(object):
             release_management_data = self._release_management_tree()
             change_result, complete_change_result = self._get_all_change_file()
             pr_check_result = self._check_pr_rule(release_management_data, complete_change_result)
+            self._check_private_sig_pkg(change_result)
             check_result = self._check_service_meta(change_result)
         elif not self.prid and self.branch:
             self._clean()
