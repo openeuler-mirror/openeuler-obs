@@ -68,6 +68,8 @@ class SYNCCode(object):
         self.obs_pkg_rpms_url = par.get_repos_dict()["obs_pkg_rpms"]
         self.obs_pkg_prms_files_dir = None
         self.sync_failed_rpms = []
+        self.obs_ignored_package = par.get_obs_ignored_package()
+        self.obs_include_project = par.get_obs_include_project()
 
     def _write_date_to_file(self):
         """
@@ -233,14 +235,33 @@ class SYNCCode(object):
         else:
             obs_project = project
             log.info("The %s in %s" % (self.repository, obs_project))
-        pull_result = self._get_latest_gitee_pull()
-        remoterun_result = self._gitee_pr_to_obs(obs_project)
-        if obs_project and pull_result and remoterun_result:
-            log.info("SYNC %s in %s SUCCESS" % (self.repository, obs_project))
-            return True
+        if obs_project not in self.obs_include_project:
+            pull_result = self._get_latest_gitee_pull()
+            remoterun_result = self._gitee_pr_to_obs(obs_project)
+            if obs_project and pull_result and remoterun_result:
+                log.info("SYNC %s in %s SUCCESS" % (self.repository, obs_project))
+                return True
+            else:
+                log.error("SYNC %s in %s ERROR: Please check the log.error" % (self.repository, obs_project))
+                return False
         else:
-            log.error("SYNC %s in %s ERROR: Please check the log.error" % (self.repository, obs_project))
-            return False
+            if self.repository in self.obs_ignored_package:
+                pull_result = self._get_latest_gitee_pull()
+                remoterun_result = self._gitee_pr_to_obs(obs_project)
+                if obs_project and pull_result and remoterun_result:
+                    log.info("SYNC %s in %s SUCCESS" % (self.repository, obs_project))
+                    return True
+                else:
+                    log.error("SYNC %s in %s ERROR: Please check the log.error" % (self.repository, obs_project))
+                    return False
+            else:
+                remoterun_result = self._gitee_pr_to_obs(obs_project)
+                if obs_project and remoterun_result:
+                    log.info("SYNC MASTER %s in %s SUCCESS" % (self.repository, obs_project))
+                    return True
+                else:
+                    log.error("SYNC %s in %s ERROR: Please check the log.error" % (self.repository, obs_project))
+                    return False
 
     def sync_code_to_obs(self):
         """
