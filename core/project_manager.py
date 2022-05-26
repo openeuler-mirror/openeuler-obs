@@ -102,14 +102,20 @@ class OBSPrjManager(object):
             log.info(res)
         log.info("create new obs project by meta file %s" % meta_file)
         if os.path.exists(obs_prj_dir):
-            cmd = "osc api -X PUT /source/%s/_meta -T %s" % (name, meta_file)
-            os.system(cmd)
-            cmd = "git add %s && \
-                    git commit -m 'add new obs project by meta file' && \
-                    git push" % obs_prj_dir
-            for i in range(5):
-                if os.system(cmd) == 0:
-                    break
+            if 'prjconf' in meta_file:
+                prj_name = name.replace("prjconf-","")
+                cmd = "osc api -X PUT /source/%s/_config -T %s" % (prj_name, meta_file)
+                os.system(cmd)
+                log.info("create project:%s config file from obs_meta success" % (prj_name))
+            else:
+                cmd = "osc api -X PUT /source/%s/_meta -T %s" % (name, meta_file)
+                os.system(cmd)
+                cmd = "git add %s && \
+                        git commit -m 'add new obs project by meta file' && \
+                        git push" % obs_prj_dir
+                for i in range(5):
+                    if os.system(cmd) == 0:
+                        break
     
     def _change_meta(self, name, meta_file):
         """
@@ -117,8 +123,14 @@ class OBSPrjManager(object):
         name: name of obs project
         meta_file: meta of obs project
         """
-        cmd = "osc api -X PUT /source/%s/_meta -T %s" % (name, meta_file)
-        os.system(cmd)
+        if 'prjconf' in meta_file:
+            prj_name = name.replace("prjconf-","")
+            cmd = "osc api -X PUT /source/%s/_config -T %s" % (prj_name, meta_file)
+            os.system(cmd)
+            log.info("sync project:%s config file from obs_meta success" % (prj_name))
+        else:
+            cmd = "osc api -X PUT /source/%s/_meta -T %s" % (name, meta_file)
+            os.system(cmd)
 
     def _delete(self, sub_dir, branch, name):
         """
