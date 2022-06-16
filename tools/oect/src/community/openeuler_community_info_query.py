@@ -18,14 +18,10 @@ This is a simple script to query that contact person for specific package
 """
 import sys
 sys.path.append('/home/oect')
-import argparse
 import os
 import re
-import shlex
-import subprocess
 import yaml
 import csv
-import codecs
 from genericpath import isfile
 from src.libs.logger import logger
 from src.config import constant
