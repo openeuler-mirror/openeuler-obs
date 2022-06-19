@@ -16,10 +16,7 @@
 
 import codecs
 import csv
-from pdb import line_prefix
-import re
 import requests
-import subprocess
 from requests.sessions import Session
 from retrying import retry
 from fake_useragent import UserAgent
@@ -33,18 +30,15 @@ from src.libs.executecmd import ExecuteCmd
 
 def update_yum_repo():
     """
-    @description :基于/etc/yum.repo.d目录下的repo配置文件, 执行yum clean all, yum makecache
-    -----------
-    @param :
-    -----------
-    @returns :
-    -----------
+    yum clean all and yum makecache
+    Args:
+    
+    Returns:
+    
     """
-    yum_clean = ["yum", "clean", "all"]
-    yum_makecache = ["yum", "makecache"]
 
-    ExecuteCmd.cmd_status(yum_clean)
-    ExecuteCmd.cmd_status(yum_makecache)
+    ExecuteCmd.cmd_status(["yum", "clean", "all"])
+    ExecuteCmd.cmd_status(["yum", "makecache"])
 
 def set_repo(chosed_repo_file, branch):
     """
@@ -57,7 +51,7 @@ def set_repo(chosed_repo_file, branch):
     
     """
 
-    repo_path = constant.REPO_PATH # dirname of yum repo file
+    repo_path = constant.REPO_PATH
     from_repo =f"{global_config.LIBS_CONFIG_FOLDER}/{chosed_repo_file}"
     back_repo_path = constant.BACK_REPO_PATH
     if not mv_files(repo_path, back_repo_path):
@@ -88,23 +82,6 @@ def set_repo(chosed_repo_file, branch):
 
     update_yum_repo()
     return True
-
-def save2csv(res_name, input_data, save_mode, header, save_encoding = 'utf-8'):
-    """
-    save inputdata to csv file
-    Args:
-        res_name: file name
-        save_mode: save mode, 'w'
-        header:
-        input_data: list of data array to save
-    Returns:
-    
-    """
-    with codecs.open(res_name, save_mode, save_encoding) as result_file:
-        writer = csv.writer(result_file)
-        writer.writerow(header)
-        for line in input_data:
-            writer.writerow(line)
 
 class http:
     """

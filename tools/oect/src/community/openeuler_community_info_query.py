@@ -21,12 +21,12 @@ sys.path.append('/home/oect')
 import os
 import re
 import yaml
-import csv
 from genericpath import isfile
 from src.libs.logger import logger
 from src.config import constant
-from src.libs.base import http, save2csv
-from itertools import islice
+from src.libs.base import http
+from src.libs.csvrw import CSVRW
+from src.libs.send_email import SendEmail
 
 
 class OpenEulerCommunityRepoInfoQuery(object):
@@ -59,17 +59,9 @@ class OpenEulerCommunityRepoInfoQuery(object):
         Returns:
         
         """
-        with open (constant.LOCAL_OPENEULER_OWNERS, 'r',encoding='gbk') as owner_file:
-            reader = csv.reader(owner_file)
-            for line in islice(reader, 1, None):
-                # Package	Sig	Team	Owner	Email	QA	maintainers
-                self.openeuler_repo_owner[line[0].strip()] = dict()
-                self.openeuler_repo_owner[line[0].strip()]['Team'] = line[2].strip()
-                self.openeuler_repo_owner[line[0].strip()]['Owner'] = line[3].strip()
-                self.openeuler_repo_owner[line[0].strip()]['Email'] = line[4].strip()
-                self.openeuler_repo_owner[line[0].strip()]['QA'] = line[5].strip()
-                self.openeuler_repo_owner[line[0].strip()]['maintainers'] = line[6].strip()
         
+        self.openeuler_repo_owner, __ = CSVRW.read_2_dict(constant.LOCAL_OPENEULER_OWNERS, encoding='gbk')
+
         
     def get_local_excep_repo_name(self):
         """
@@ -94,7 +86,7 @@ class OpenEulerCommunityRepoInfoQuery(object):
         """
         sigs = dict()
         sigs_dir = os.listdir(constant.LOCAL_SIGS)
-        logger.info(sigs_dir)
+        # logger.info(sigs_dir)
         for sig_dir in sigs_dir:
             if sig_dir == 'TC' or isfile(os.path.join(constant.LOCAL_SIGS, sig_dir)):
                 continue
@@ -321,15 +313,24 @@ class OpenEulerCommunityRepoInfoQuery(object):
         @returns :
         -----------
         """
-        res_data = []
+    
+        repo_names = []
+        sig_names = []
+        sig_maintainers = []
+
         for c_sig_name in self.signames:
+            # logger.info(f"c_sig_name: {c_sig_name}")
             sig_repos = self.query_sig_repo(c_sig_name)
             sig_maintainer = self.query_maintainer_info(c_sig_name)
             for repo_name in sig_repos:
-                res_data.append([repo_name, c_sig_name, sig_maintainer])
+                # logger.info(f"{repo_name}")
+                repo_names.append(repo_name)
+                sig_names.append(c_sig_name)
+                sig_maintainers.append(sig_maintainer)
 
+        res_data = [repo_names, sig_names, sig_maintainers]
         res_csv_name = "openEuler_full_repos.csv"
-        save2csv(res_csv_name, res_data, 'w', ["Package", "Sig", "Maintainers"])
+        CSVRW.save_by_column(res_csv_name, res_data, ["Package", "Sig", "Maintainers"])
 
 
     def get_related_email(self, repo_name):
@@ -349,6 +350,3 @@ class OpenEulerCommunityRepoInfoQuery(object):
 
 
 sig_info_query = OpenEulerCommunityRepoInfoQuery()
-
-if __name__ == "__main__":
-    sig_info_query.get_latest_contributors('zip', 'master')
