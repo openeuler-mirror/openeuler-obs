@@ -281,6 +281,8 @@ done
             if not self.compare_rpms(pkg):
                 self.backup_old_rpms_by_pkg(pkg, old_rpms_list)
                 self.copy_new_rpms_to_repo(pkg, new_rpms_list)
+            else:
+                self.old_pkg_rpms[pkg] = new_rpms_list
         else:
             log.debug("%s all rpms are latest should do nothing" % pkg)
         if new_rpms_list:
