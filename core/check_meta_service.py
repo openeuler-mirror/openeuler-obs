@@ -281,7 +281,7 @@ class CheckMetaPull(object):
         service_branch = []
         url_list,revision_list = self._get_url_info_new(pkg_path)
         for all_url in url_list:
-            head,sep,tail = all_url.split('/')[1].partition('.')
+            head=os.path.splitext(all_url.split('/')[1])[0]
             service_name.append(head)
         for all_revision in revision_list:
             service_branch.append(all_revision)
