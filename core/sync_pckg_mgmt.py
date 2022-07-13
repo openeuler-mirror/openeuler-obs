@@ -24,6 +24,7 @@ import shutil
 now_path = os.path.join(os.path.split(os.path.realpath(__file__))[0])
 sys.path.append(os.path.join(now_path, ".."))
 from common.log_obs import log
+from common.parser_config import ParserConfigIni
 
 
 class SyncPckgMgmt(object):
@@ -40,6 +41,8 @@ class SyncPckgMgmt(object):
         self.giteeuserpwd = self.kwargs['gitee_pwd']
         self.obs_meta_path = self.kwargs['obs_meta_path']
         self.release_management_path = self.kwargs['release_management_path']
+        par = ParserConfigIni()
+        self.obs_ignored_package = par.get_obs_ignored_package()
 
     def _get_change_file(self):
         """
@@ -188,6 +191,22 @@ class SyncPckgMgmt(object):
         f.write(file_msg)
         f.close()
 
+    def _write_service_file(self, filepath, package, pkg_branch):
+        '''
+        write service file
+        '''
+        file_msg = """<services>
+        <service name="tar_scm_kernel_repo">
+          <param name="scm">repo</param>
+          <param name="url">next/{}/{}</param>
+        </service>
+</services>""".format(pkg_branch,package)
+        try:
+            with open(os.path.join(filepath,'_service'),'w') as f:
+                f.write(file_msg)
+        except Exception as e:
+            print (e)
+
     def _add_pkg_service(self, tmp):
         """
         add obs_meta packages _service file
@@ -195,22 +214,29 @@ class SyncPckgMgmt(object):
         from_pkg_path = os.path.join(self.obs_meta_path, tmp['branch_from'], tmp['obs_from'], tmp['pkgname'])
         pkg_path = os.path.join(self.obs_meta_path, tmp['branch_to'], tmp['obs_to'], tmp['pkgname'])
         pkg_service_path = os.path.join(pkg_path, "_service")
-        if tmp['branch_from'] == "master":
-            branch = "openEuler"
-        else:
-            branch = tmp['branch_from']
         if not os.path.exists(pkg_path):
             os.makedirs(pkg_path)
-        if not os.path.exists(pkg_service_path):
-            cmd = "cp %s/_service %s/_service" % (from_pkg_path, pkg_path)
-            if os.system(cmd) == 0:
-                cmd = "sed -i 's/%s\//%s\//g' %s/_service" % (branch, tmp['branch_to'], pkg_path)
-                if os.system(cmd) == 0:
-                    log.info("add %s %s %s _service succeed!" % (tmp['branch_to'], tmp['obs_to'], tmp['pkgname']))
-                else:
-                    log.info("add %s %s %s _service failed!" % (tmp['branch_to'], tmp['obs_to'], tmp['pkgname']))
+        if tmp['branch_from'] == "master" and tmp['pkgname'] not in self.obs_ignored_package:
+            self._write_service_file(pkg_path, tmp['pkgname'], tmp['branch_to'])
+            if os.path.exists(pkg_service_path):
+                log.info("add %s %s %s _service succeed!" % (tmp['branch_to'], tmp['obs_to'], tmp['pkgname']))
             else:
-                log.error("copy %s service file failed!" % tmp['pkgname'])
+                log.info("add %s %s %s _service failed!" % (tmp['branch_to'], tmp['obs_to'], tmp['pkgname']))
+        else:
+            if tmp['branch_from'] == "master":
+                branch = "openEuler"
+            else:
+                branch = tmp['branch_from']
+            if not os.path.exists(pkg_service_path):
+                cmd = "cp %s/_service %s/_service" % (from_pkg_path, pkg_path)
+                if os.system(cmd) == 0:
+                    cmd = "sed -i 's/%s\//%s\//g' %s/_service" % (branch, tmp['branch_to'], pkg_path)
+                    if os.system(cmd) == 0:
+                        log.info("add %s %s %s _service succeed!" % (tmp['branch_to'], tmp['obs_to'], tmp['pkgname']))
+                    else:
+                        log.info("add %s %s %s _service failed!" % (tmp['branch_to'], tmp['obs_to'], tmp['pkgname']))
+                else:
+                    log.error("copy %s service file failed!" % tmp['pkgname'])
     
     def _add_prj_meta_pkgs_service(self, msg):
         for tmp in msg:
