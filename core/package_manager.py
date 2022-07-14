@@ -316,7 +316,7 @@ class OBSPkgManager(object):
         for line in data:
             file_content.append(line.strip('\n'))
         data.close()
-        with ThreadPoolExecutor(10) as executor:
+        with ThreadPoolExecutor(50) as executor:
             for content in file_content:
                 executor.submit(self._obs_pkg_action, content)
         
