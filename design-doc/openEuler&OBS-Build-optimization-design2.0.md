@@ -378,13 +378,29 @@ release sig通过release-management来管控版本分支软件包基线以及变
 
 ##### 目录结构
 
-| 目录内容            | 解释                                                         |
-| ------------------- | ------------------------------------------------------------ |
-| delete              | 用于记录处理master下所有删除包，需要删除包时，只需将包名加入该目录下的pckg-mgmt.yaml中 |
-| openEuler-Factory   | 用于记录处理openEuler-Factory工程下所有包                    |
-| openEuler-Mainline  | 用于记录处理openEuler-Mainline工程下所有包                   |
-| release_change.yaml | 用于记录所有包变动内容                                       |
-| ...                 | ...                                                          |
+| 目录内容                                   | 解释                                                         |
+| ------------------------------------------ | ------------------------------------------------------------ |
+| delete                                     | 用于记录处理master下所有删除包，需要删除包时，只需将包名加入该目录下的pckg-mgmt.yaml中 |
+| openEuler-Factory                          | 用于记录处理openEuler-Factory工程下所有包                    |
+| openEuler-Mainline                         | 用于记录处理openEuler-Mainline工程下所有包                   |
+| openEuler-BaseTools                        | 同上                                                         |
+| openEuler-C                                | 同上                                                         |
+| openEuler-Common_Languages_Dependent_Tools | 同上                                                         |
+| openEuler-Epol                             | 同上                                                         |
+| openEuler-Erlang                           | 同上                                                         |
+| openEuler-Golang                           | 同上                                                         |
+| openEuler-Java                             | 同上                                                         |
+| penEuler-KernelSpace                       | 同上                                                         |
+| openEuler-Lua                              | 同上                                                         |
+| openEuler-Meson                            | 同上                                                         |
+| openEuler-MultiLanguage                    | 同上                                                         |
+| openEuler-Nodejs                           | 同上                                                         |
+| openEuler-Ocaml                            | 同上                                                         |
+| openEuler-Perl                             | 同上                                                         |
+| openEuler-Python                           | 同上                                                         |
+| openEuler-Qt                               | 同上                                                         |
+| openEuler-Ruby                             | 同上                                                         |
+| release_change.yaml                        | 用于记录所有包变动内容                                       |
 
 ##### pckg-mgmt.yaml字段解释
 
