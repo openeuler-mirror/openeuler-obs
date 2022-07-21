@@ -92,7 +92,7 @@ release sig通过release-management来管控版本分支软件包基线以及变
 1.	只管版本分支，不管开发分支（master/Next），导致版本分支工程软件包变更流程繁琐：https://gitee.com/openeuler/release-management/issues/I4U2VN?from=project-issue；
 3.	pckg-mgmt.yaml臃肿，原来的数据结构失去意义，导致软件包变更PR提交和检视不方便；
 3.	缺少对基础镜像二进制变更的管控，导致基础镜像制作失败阻塞转测；
-基础镜像二进制变更现有流程:
+   基础镜像二进制变更现有流程:
    ![](origin_baseos_change.png)
 
 #### 3.2.3 project/package构建等待时间长：
@@ -317,7 +317,7 @@ release sig通过release-management来管控版本分支软件包基线以及变
    - Testing分层，release保持不变；
      优点：用户使用release工程的repo源方式不变，制作ISO的工具链不感知变化；
      缺点：当release暴露出单包构建问题时，不方便定界；
-结论：采用方案二
+     结论：采用方案二
 
 2. 分层 project的repo源能否整合成一个？
 
@@ -369,3 +369,195 @@ release sig通过release-management来管控版本分支软件包基线以及变
 10. 如果开发者想要变更软件包所在层级，怎么操作？
 
     在release-management的master目录下提交PR变更软件包名所在目录即可
+## 7 基于分层结构开发者修改提交PR流程
+### 7.1 release_management目录结构
+
+![目录结构](目录结构.png)
+
+#### 7.1.1  master下目录结构以及pckg-mgmt.yaml内容解释
+
+##### 目录结构
+
+| 目录内容                                   | 解释                                                         |
+| ------------------------------------------ | ------------------------------------------------------------ |
+| delete                                     | 用于记录处理master下所有删除包，需要删除包时，只需将包名加入该目录下的pckg-mgmt.yaml中 |
+| openEuler-Factory                          | 用于记录处理openEuler-Factory工程下所有包                    |
+| openEuler-Mainline                         | 用于记录处理openEuler-Mainline工程下所有包                   |
+| openEuler-BaseTools                        | 同上                                                         |
+| openEuler-C                                | 同上                                                         |
+| openEuler-Common_Languages_Dependent_Tools | 同上                                                         |
+| openEuler-Epol                             | 同上                                                         |
+| openEuler-Erlang                           | 同上                                                         |
+| openEuler-Golang                           | 同上                                                         |
+| openEuler-Java                             | 同上                                                         |
+| penEuler-KernelSpace                       | 同上                                                         |
+| openEuler-Lua                              | 同上                                                         |
+| openEuler-Meson                            | 同上                                                         |
+| openEuler-MultiLanguage                    | 同上                                                         |
+| openEuler-Nodejs                           | 同上                                                         |
+| openEuler-Ocaml                            | 同上                                                         |
+| openEuler-Perl                             | 同上                                                         |
+| openEuler-Python                           | 同上                                                         |
+| openEuler-Qt                               | 同上                                                         |
+| openEuler-Ruby                             | 同上                                                         |
+| release_change.yaml                        | 用于记录所有包变动内容                                       |
+
+##### pckg-mgmt.yaml字段解释
+
+| 字段     | 解释                                                         |
+| -------- | ------------------------------------------------------------ |
+| name     | 包名                                                         |
+| obs_from | 该包来自于OBS工程名，确保该包存在于该工程对应得obs_meta仓库目录下，否则门禁提示错误 |
+| obs_to   | 该包将要移动到OBS工程名                                      |
+| date     | 在yaml中修改该包的日期，修改日期必须与提交日期保持一致，否则门禁会提示错误 |
+
+#### 7.1.2 multi_version下目录结构以及pckg-mgmt.yaml内容解释
+
+##### 目录结构
+
+| 目录内容                                                     | 解释                                         |
+| ------------------------------------------------------------ | -------------------------------------------- |
+| openEuler_22.03_LTS_Epol_Multi-Version_OpenStack_Train       | 用于记录处理该分支下所有包的增加、删除、移动 |
+| openEuler_22.03_LTS_Epol_Multi-Version_OpenStack_Wallaby     | 同上                                         |
+| openEuler_22.03_LTS_Next_Epol_Multi-Version_OpenStack_Train  | 同上                                         |
+| openEuler_22.03_LTS_Next_Epol_Multi-Version_OpenStack_Wallaby | 同上                                         |
+| ...                                                          | ...                                          |
+
+##### pckg-mgmt.yaml字段解释
+
+| 字段            | 解释                                                         |
+| --------------- | ------------------------------------------------------------ |
+| name            | 包名                                                         |
+| source_dir      | 在于obs_meta仓库的哪个目录(与分支名一样)下                   |
+| destination_dir | 将要复制新建到obs_meta仓库的哪个目录下                       |
+| obs_from        | 该包来自于OBS工程名，确保该包存在于该工程对应的obs_meta仓库目录(source_dir/obs_from/name)下，否则门禁提示错误 |
+| obs_to          | 该包将要新增到的OBS工程名,该包会新增到该工程对应得obs_meta仓库目录(destination_dir/obs_to/name)下 |
+| date            | 在yaml中修改该包的日期，修改日期必须与提交日期保持一致，否则门禁会提示错误 |
+
+#### 7.1.2 版本或开发分支目录结构以及pckg-mgmt.yaml内容解释
+
+##### 目录结构
+
+| 目录内容                  | 解释                                                     |
+| ------------------------- | -------------------------------------------------------- |
+| baseos                    | 用于记录处理该分支下所有属于baseos包的增加、移动         |
+| epol                      | 用于记录处理该分支下所有属于epol包的增加、移动           |
+| everything-exclude-baseos | 用于记录处理该分支下所有不属于epol和baseos包的增加、移动 |
+| release-change.yaml       | 用于记录该分支下所有包变动内容                           |
+| delete                    | 用于记录处理该分支下所有包的删除                         |
+| ...                       | ...                                                      |
+
+##### pckg-mgmt.yaml字段解释
+
+| 字段            | 解释                                                         |
+| --------------- | ------------------------------------------------------------ |
+| name            | 包名                                                         |
+| source_dir      | 在于obs_meta仓库的哪个目录(与分支名一样)下                   |
+| destination_dir | 将要复制新建到obs_meta仓库的哪个目录下                       |
+| obs_from        | 该包来自于OBS工程名，确保该包存在于该工程对应的obs_meta仓库目录(source_dir/obs_from/name)下，否则门禁提示错误 |
+| obs_to          | 该包将要新增到的OBS工程名,该包会新增到该工程对应得obs_meta仓库目录(destination_dir/obs_to/name)下 |
+| date            | 在yaml中修改该包的日期，修改日期必须与提交日期保持一致，否则门禁会提示错误 |
+
+### 7.2 开发者提交修改流程
+
+#### 7.2.1 master下包新增、移动、删除
+
+##### 1.修改pckg-mgmt.yaml内容
+
+如下：
+
+###### 1.1从openEuler-Mainline移动metis至openEuler-Qt
+
+![master_move](master_move.png)
+
+######  1.2 从master下删除两个包
+
+​		![master_delete](master_delete.png)
+
+##### 2.创建PR提交至仓库等待门禁检查，门禁检查成功即可申请合入
+
+ note:后台动作
+
+ PR合入等待任务后台操作，后续会将修改先同步至obs_meta,以及同步至OBS工程
+
+ 对于要删除的包，任务会后台操作对应得yaml内容，将加入到delete的包从yaml中删除，并推送到release_management仓库
+
+##### 3.对于所有包的移动都会记录到对应得release_change.yaml中
+
+![master_release_change](master_release_change.png)
+
+#### 7.2.2 multi_version下包新增、移动、删除
+
+##### 1.修改对应pckg-mgmt.yaml
+
+如下：
+
+###### 1.1  在multi_version/openEuler_22.03_LTS_Epol_Multi-Version_OpenStack_Train/pckg-mgmt.yaml中新增hiredis包
+
+![multi_add](multi_add.png)
+
+###### 1.2 在multi_version/openEuler_22.03_LTS_Next_Epol_Multi-Version_OpenStack_Train/pckg-mgmt.yaml中删除python-pexpect包
+
+![multi_delete](multi_delete.png)
+
+##### 2.创建PR提交至仓库等待门禁检查，门禁检查成功即可申请合入
+
+ note:后台动作
+
+ PR合入等待任务后台操作，后续会将修改先同步至obs_meta,以及同步至OBS工程
+
+##### 3.对于所有包的移动都会记录到对应得release_change.yaml中
+
+![multi_release_change](multi_release_change.png)
+
+#### 7.2.3 开发或者版本分支下包新增、移动、删除（pckg-mgmt.yaml已拆分）
+
+##### 1.修改对应pckg-mgmt.yaml
+
+如下：
+
+###### 1.1 新增ansible-2.9至epol，分支内移动dibbler
+
+![2203-move_add](2203-move_add.png)
+
+###### 1.2 删除分支内包libxcvt
+
+![2203-delete](2203-delete.png)
+
+##### 2.创建PR提交至仓库等待门禁检查，门禁检查成功即可申请合入
+
+ note:后台动作
+
+ PR合入等待任务后台操作，后续会将修改先同步至obs_meta,以及同步至OBS工程
+
+ 对于要删除的包，任务会后台操作对应得yaml内容，将加入到delete的包从yaml中删除，并推送到release_management仓库
+
+##### 3.对于所有包的移动都会记录到对应得release_change.yaml中
+
+![2203_release_change](2203_release_change.png)
+
+#### 7.2.4 一个PR同时提交包移动到两个分支
+
+**Note：要在同一个PR完成不同分支的包引入或移动，分支需满足以下继承规则**
+
+https://gitee.com/openeuler/release-management/blob/master/valid_release_branches.yaml
+
+##### 1.修改对应pckg-mgmt.yaml
+
+如下：
+
+![1prop](1prop.jpg)
+
+开发者想同时将包butane 1.从openEuler:Factory移动至工程openEuler:Lua 2.同时从openEuler:Lua引入至openEuler-22.03-LTS-Next，由于分支openEuler-22.03-LTS-Next和master满足分支继承规则，因此可以用一个PR同时移动
+
+##### 2.创建PR提交至仓库等待门禁检查，门禁检查成功即可申请合入
+
+ note:后台动作
+
+ PR合入等待任务后台操作，后续会将修改先同步至obs_meta,以及同步至OBS工程
+
+ 对于要删除的包，任务会后台操作对应得yaml内容，将加入到delete的包从yaml中删除，并推送到release_management仓库
+
+##### 3.对于所有包的移动都会记录到对应得release_change.yaml中
+
+![image-20220719163848905](image-release.png)
