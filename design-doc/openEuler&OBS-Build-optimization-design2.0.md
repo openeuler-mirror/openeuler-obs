@@ -7,8 +7,6 @@ openEuler社区软件仓接入OBS构建工程流程较为复杂，开发分支�
 
 openEuler 社区构建系统基于OBS搭建，当前版本工程与私有工程由同一套OBS“一手抓”的情况已不能满足版本开发、测试需求， 对于社区开发者和版本构建工程师来说，“构建慢”的现象越来越明显，我们希望基于OBS当前的架构做一下调度资源和构建策略的调整来大大缓解这一现象。
 
-
-
 ## 2. 需求描述
 ### 2.1 分层构建
 分层构建，或者叫分层流水构建，是指将openEuler版本范围内的软件包按照一定的依赖关系分层创建project，原本有依赖环的包也拆分到上下层，这样每一层有明确的对下层project的repo的依赖关系，每一层有自己的软件包的构建策略。
@@ -130,9 +128,6 @@ release sig通过release-management来管控版本分支软件包基线以及变
 ![分层构建——Testing分层定义](testing.png)
 
 
-
-
-
 #### 4.1.3 流程图
 ![分层构建——Testing&Release代码同步流程图](layered_build_daily_check.png)
 
@@ -145,8 +140,6 @@ release sig通过release-management来管控版本分支软件包基线以及变
 2. 工具分析master分支软件包所属编程语言，抽象若干同层project范围，属于L3层；
 3. 工具识别依赖环（pkgship已支持），由工程组主导破坏；
 
-
-
 #### 4.1.7 分层project构建配置策略
 1. Testing 各project均打开useforbuild，meta配置“rebuild=local”或者“rebuild=direct”；
    > Note:
@@ -155,39 +148,22 @@ release sig通过release-management来管控版本分支软件包基线以及变
    
 2. release工程均打开useforbuild；
 
-#### 4.1.8 Testing&Release Project日常校验及分支代码同步策略
-1. 门禁记录PR合入信息：
+#### 4.1.8 Testing&Release Project日常校验策略
 
-   master分支合入的PR会生成一条“变更影响范围”记录推送到OBS的常驻project：source_change。
+1. 定时校验Testing工程软件包构建状态：
 
-2. 轮询处理source_change：
-   
-   基于每一条source_change记录中的软件包范围，触发
-   jenkins任务：check_project_stablity，校验记录中所有包的编译状态/自编译/安装/功能测试等.
+   Testing工程作为日常开发分支工程，构建最频繁，故设计轮询校验当前的工程新增的单包构建问题，进行常规的问题分析并生成报告，邮件通知开发者；
 
-   （1）校验OK，查看当前代码同步通道是否open，若是open，则开启同步任务，将记录中涉及变更的包代码从mater分支同步到release分支；
+2. 触发校验Testing工程repo源：
 
-   > Notes:校验时，如果project状态还未稳定，则跳过不处理；
+   Testing每一层project的软件包构建至稳定状态且无failed/unresolvable, 触发校验对应的repo源，验证二进制包的安装以及部分包的卸载，生成分析报告并发邮件通知开发者；
 
-   （2）校验不OK，生成测试报告，提交issue，关闭master-release分支同步通道，邮件通知社区、release sig 成员及开发者；
-   
-   （3）若代码同步通道closed，生成同步失败报告；
-   
-3. 轮询校验Testing工程：
+3. 触发检测Testing工程中是否有依赖环：
 
-   （1）Testing工程作为日常开发分支工程，构建最频繁，故设计轮询校验当前的工程新增的单包构建问题，进行常规的问题分析并生成报告，邮件通知开发者；
+   触发校验Testing工程repo源的同时，触发依赖环检测，找到所有存在的不相关依赖环列表，由CICD sig组主导破环；
 
-   （2）当单包构建/安装问题均闭环，启动ISO构建并跑AT，若AT成功，发布每日版本；若不成功，生成测试报告，提交issue，冻结master分支代码合入，邮件通知社区、release sig成员；
-
-   > Note：若是第一次制作ISO没有问题，提交release决策是否启动branch新的release分支（openEuler-22.09）
-
-4. 定时校验release工程：
-   当release project处于publish状态时，触发制作ISO/镜像，同步等待AT结果：
-   （1）若AT全部succeed，则发布滚动版本；
-   （2）若AT有failed项，生成测试报告，提交issue，关闭master-release分支同步通道，直到阻塞问题全部解决，再重新开启；
-
-#### 4.1.9  软件包层级变更策略（待补充）
-考虑到软件包本身的依赖关系可能发生变更、清退或者初始分层不合理等场景，我们为之设计一个允许开发者提交PR来变更软件包所在层级的流程：
+#### 4.1.9  软件包层级变更策略
+考虑到软件包本身的依赖关系可能发生变更、清退或者初始分层不合理等场景，我们为之设计一个允许开发者提交PR来变更软件包所在层级的流程，具体操作请见8.0
 
 ### 4.2 优化release软件包管控机制
 ![release-management组织重构](release_new.png)
@@ -197,10 +173,6 @@ release sig通过release-management来管控版本分支软件包基线以及变
 
 #### 4.2.2 纳管所有分支工程(master/Next/multi-version)
 ![纳管新分支](manage_all_branches.png)
-
-遗留问题：multi-version建议放到openEuler版本分支目录中——董杰，需要到release报一个议题：保留统一的目录还是跟随openEuler版本分支目录
-
-
 
 #### 4.2.3 支持承载版本基线软件包变更记录
 
@@ -369,16 +341,15 @@ release sig通过release-management来管控版本分支软件包基线以及变
 10. 如果开发者想要变更软件包所在层级，怎么操作？
 
     在release-management的master目录下提交PR变更软件包名所在目录即可
-## 7 Master分层构建和22.09拆分目录结构
-### 7.1 release_management目录结构
+
+## 7 Relese-management目录优化及pckg-mgmt字段解释
+### release_management目录结构
 
 ![目录结构](0723_release_dir.png)
 
-note：本次上线的新目录包括：master，openEuler-22.09
+###  纳管master分支
 
-#### 7.1.1  master下目录结构
-
-***<u>Note：社区基于master分支工程做的分层project，如无特殊需求，由CICD sig组主导软件包的分层，开发者如往常提交PR至openEuler: Mainline/openEuler:Epol即可。若开发者对于具体软件包的分层有新建议，欢迎提交issue或者邮件交流</u>***
+- Note：社区基于master分支工程做的分层project，如无特殊需求，由CICD sig组主导软件包的分层，开发者如往常提交PR至openEuler: Mainline/openEuler:Epol即可。若开发者对于具体软件包的分层有新建议，欢迎提交issue或者邮件交流
 
 | 目录内容                                   | 解释                                                         |
 | ------------------------------------------ | ------------------------------------------------------------ |
@@ -404,7 +375,7 @@ note：本次上线的新目录包括：master，openEuler-22.09
 | openEuler-Ruby                             | 用于管控openEuler:Ruby工程下所有包，编译依赖ruby编程语言的组件、插件 |
 | release_change.yaml                        | 用于记录所有包变动内容                                       |
 
-#### 7.1.2 multi_version下目录结构
+### 纳管multi_version分支
 
 | 目录内容                                                     | 解释                                                         |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -413,7 +384,7 @@ note：本次上线的新目录包括：master，openEuler-22.09
 | openEuler_22.03_LTS_Next_Epol_Multi-Version_OpenStack_Train  | 用于管控openEuler-22.03-LTS-Next openstack train版本软件包的增加、删除、移动 |
 | openEuler_22.03_LTS_Next_Epol_Multi-Version_OpenStack_Wallaby | 用于管控openEuler-22.03-LTS-Next wallaby 版本软件包的增加、删除、移动 |
 
-#### 7.1.3版本或开发分支目录结构
+### 纳管版本或开发分支
 
 | 目录内容                  | 解释                                                 |
 | ------------------------- | ---------------------------------------------------- |
@@ -423,7 +394,7 @@ note：本次上线的新目录包括：master，openEuler-22.09
 | delete                    | 用于管控该分支下所有包的删除                         |
 | release-change.yaml       | 用于记录该分支下所有包变动内容                       |
 
-### 7.2 pckg-mgmt.yaml字段解释
+### pckg-mgmt.yaml字段解释
 
 | 字段            | 解释                                                         | 是否必填 |
 | --------------- | ------------------------------------------------------------ | -------- |
@@ -434,17 +405,18 @@ note：本次上线的新目录包括：master，openEuler-22.09
 | obs_to          | 该包将要新增到的OBS工程名,该包会新增到该工程对应得obs_meta仓库目录(destination_dir/obs_to/name)下 | √        |
 | date            | 在yaml中修改该包的日期，修改日期必须与提交日期保持一致，否则门禁会提示错误 | √        |
 
-## 8 基于master分层构建和2209分支开发者提交修改流程
+## 8 开发者提交变更软件包流程
 
-***<u>Note：本指导文档用于指导release_management仓库中master下分层工程以及openEuler-2209包操作的文档，其他分支仍按照之前流程进行操做即可</u>***
+本章节用于指导开发者如何变更release_management下纳管分支(已停维分支除外)对应project内/不同 project之间的软件包
 
-#### 8.1 master下包的移动
+#### 8.1 master分支内包的移动
 
 <u>***操作实例***：</u>
 
 ***<u>修改对应目录下的pckg-mgmt.yaml，从openEuler-Mainline移动metis至openEuler-Qt，将包内容从openEuler-Mainline删除，并添加至openEuler-Qt</u>***
 
-note：其中date字段需要与提交日期一致
+- note：date字段需要与提交日期一致
+
 
 ![0723maser_move](0723maser_move.png)
 
@@ -460,13 +432,13 @@ note：其中date字段需要与提交日期一致
 
 ![0723master_delete](0723master_delete.png)
 
-***<u>note：记录本次PR所所删除的包至master/release_change.yaml中，从原yaml中删除该包（该动作为自动动作，无需开发者操作）</u>***
+- note：PR合入后自动从原yaml中删除该包，并推送记录至master/release_change.yaml中
 
 ![0723master_delete_record](0723master_delete_record.png)
 
 #### 8.3 master下包的新增
 
-**note：master下包的新增均有后台任务完成，开发者不能操作**
+- note：master下包的新增均有openEuler-cibot完成，开发者不能操作
 
 #### 8.4 开发或者版本分支下包新增（pckg-mgmt.yaml已拆分）
 
@@ -476,7 +448,7 @@ note：其中date字段需要与提交日期一致
 
 ![0723_2209_add](0723_2209_add.png)
 
-***<u>note：记录本次PR的所有 新增包信息至openEuler-2209/release_change.yaml中（该动作为自动动作，无需开发者操作）</u>***
+- note：PR合入后自动记录本次PR新增包信息至openEuler-2209/release_change.yaml中
 
 ![0723_2209_add_record](0723_2209_add_record.png)
 
@@ -488,7 +460,7 @@ note：其中date字段需要与提交日期一致
 
 ![internal_move_2209](internal_move_2209.png)
 
-***<u>note：记录本次PR的所有 新增包信息至openEuler-2209/release_change.yaml中（该动作为自动动作，无需开发者操作）</u>***
+- note：PR合入后自动记录本次PR新增包信息至openEuler-2209/release_change.yaml中
 
 #### 8.6 开发或者版本分支内包的删除（pckg-mgmt.yaml已拆分）
 
@@ -498,22 +470,26 @@ note：其中date字段需要与提交日期一致
 
 ![2209_delete](2209_delete.png)
 
-***<u>note：记录本次PR的所有 删除包信息至openEuler-2209/release_change.yaml中，并从原yaml中删除该包信息（该动作为自动动作，无需开发者操作）</u>***
+- note：PR合入后自动从原yaml中删除该包信息，并推送本次PR删除包信息至openEuler-2209/release_change.yaml中
 
 ![2209_delete_record](2209_delete_record.png)
 
 #### 8.7 一个PR同时提交包移动到两个分支
 
-**Note：要在同一个PR完成不同分支的包引入或移动，分支需满足以下继承规则，停维分支暂不支持**
+   如果开发者希望在同一个PR中完成：
 
-https://gitee.com/openeuler/release-management/blob/master/valid_release_branches.yaml
+      (1) 将eagle从openEuler:Factory移动至工程openEuler:Lua;
+      (2) 将eagle从openEuler:Lua引入至openEuler-22.09;
+- Note：
+- 1. 要在同一个PR完成不同分支的包引入或移动，分支需满足以下继承规则:https://gitee.com/openeuler/release-management/blob/master/valid_release_branches.yaml
+- 2. 停维分支不支持
+
+
 
 ***<u>修改对应pckg-mgmt.yaml，如下图</u>***
 
 ![eagle_add](eagle_add.png)
 
-开发者想同时将包eagle 1.从openEuler:Factory移动至工程openEuler:Lua 2.同时从openEuler:Lua引入至openEuler-22.09，由于分支openEuler-22.09和master满足分支继承规则，因此可以用一个PR同时移动
-
-***<u>Note：对于所有包的移动都会记录到对应得release_change.yaml中</u>***
+Note：对于所有包的移动都会自动记录到对应的release_change.yaml中
 
 ![eagle](eagle.png)
