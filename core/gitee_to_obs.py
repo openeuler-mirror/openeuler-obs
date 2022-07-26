@@ -338,7 +338,7 @@ class CheckCode(object):
             ret = os.system(cmd)
         if ret == 0:
             try:
-                cmd = "cat {0}| grep spec".format(package)
+                cmd = "cat {0}| grep '\.spec'".format(package)
                 data = os.popen(cmd).read()
                 str_find = '<a title=.* href="/src-openeuler/.*">(.*.spec)</a>'
                 #str_find = '<a href="/src-openeuler/.*" title=.*>(.*.spec)</a>'
@@ -374,7 +374,7 @@ class CheckCode(object):
         project:
         package:
         """
-        cmd = "osc ls -e %s %s | grep '.spec'" % (project, package)
+        cmd = "osc ls -e %s %s | grep '\.spec'" % (project, package)
         data = os.popen(cmd).read()
         str_find = '(.*.spec)'
         spec_files = re.findall(str_find, data)
