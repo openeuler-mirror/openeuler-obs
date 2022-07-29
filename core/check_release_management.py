@@ -465,25 +465,28 @@ class CheckReleaseManagement(object):
         for branch,pkgs in add_infos.items():
             log.info('check branch:{} add pkgs obs_from check running...'.format(branch))
             for pkg in pkgs:
-                branch = branch.replace("-",":")
                 if pkg['obs_from']:
                     if 'Multi-Version' in branch:
+                        c_branch = branch.replace("_",":")
                         from_result = self._find_master_meta_path(pkg, ctype='multi-from')
                     else:
+                        c_branch = branch.replace("-",":")
                         from_result = self._find_master_meta_path(pkg)
                     if from_result:
                         error_flag = True
-                        if error_infos.get(branch,[]):
-                            error_infos[branch].append(pkg)
+                        if error_infos.get(c_branch,[]):
+                            error_infos[c_branch].append(pkg)
                         else:
-                            error_infos[branch] = [pkg]
-                if pkg['obs_to'] != branch:
+                            error_infos[c_branch] = [pkg]
+                else:
+                    c_branch = branch.replace("-",":")
+                if pkg['obs_to'] != c_branch:
                     error_flag = True
                     log.error("pkg name:{2} Wrong obs_to: <obs_to:{0}> in <project:{1}>!!!".format(pkg['obs_to'],branch,pkg['name']))
-                    if error_infos.get(branch,[]):
-                        error_infos[branch].append(pkg)
+                    if error_infos.get(c_branch,[]):
+                        error_infos[c_branch].append(pkg)
                     else:
-                        error_infos[branch] = [pkg]
+                        error_infos[c_branch] = [pkg]
         if error_infos:
             log.error("some errors in your commit,please check: {}".format(error_infos))
         return error_flag
