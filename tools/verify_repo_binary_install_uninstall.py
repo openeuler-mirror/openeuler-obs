@@ -173,45 +173,50 @@ def install_uninstall(check_rpmlist, sys_rpmlist, project):
             install_remove_rpms.append(rpms)
     if os.path.exists(install_dir):
         shutil.rmtree(install_dir)
+    max_num = 3000
     if install_rpms:
-        rpms = " ".join(install_rpms)
-        cmd = "yum install -y %s --installroot=%s" % (rpms, install_dir)
-        out, err = run_cmd(cmd)
-        print(out)
-        if ("Complete!" in out) and ("Installed:" in out):
-            print("[INFO]: Check Install system_rpm %s %s succeed!" % (project, rpms))
-            if os.path.exists(install_dir):
-                shutil.rmtree(install_dir)
-        else:
-            print(err)
-            print("[ERROR]: Check Install system_rpm %s %s failed!" % (project, rpms))
-            msg = get_problems(err, "Install")
-        if msg:
-            final_msg.extend(msg)
-    if install_remove_rpms:
-        rpms = " ".join(install_remove_rpms)
-        cmd = "yum install -y %s" % rpms
-        out, err = run_cmd(cmd)
-        print(out)
-        if ("Complete!" in out) and ("Installed:" in out):
-            print("[INFO]: Check Install %s %s succeed!" % (project, rpms))
-            cmd = "yum remove -y %s" % rpms
+        for i in range(0, len(install_rpms), max_num):
+            part_install_rpms = install_rpms[i:i+max_num]
+            rpms = " ".join(part_install_rpms)
+            cmd = "yum install -y %s --installroot=%s" % (rpms, install_dir)
             out, err = run_cmd(cmd)
             print(out)
-            if ("Complete!" in out) and ("Removed:" in out):
-               print("[INFO]: Check Remove %s %s succeed!" % (project, rpms))
-            elif "protected packages" in err:
-                print(err)
-                print("[WARNING]: %s %s unable to remove!" % (project, rpms))
+            if ("Complete!" in out) and ("Installed:" in out):
+                print("[INFO]: Check Install system_rpm %s %s succeed!" % (project, rpms))
             else:
                 print(err)
-                print("[ERROR]: Check Remove %s %s failed!" % (project, rpms))
-        else:
-            print(err)
-            print("[ERROR]: Check Install %s %s failed!" % (project, rpms))
-            msg = get_problems(err, "Install")
+                print("[ERROR]: Check Install system_rpm %s %s failed!" % (project, rpms))
+                msg = get_problems(err, "Install")
             if msg:
                 final_msg.extend(msg)
+        if os.path.exists(install_dir):
+            shutil.rmtree(install_dir)
+    if install_remove_rpms:
+        for i in range(0, len(install_remove_rpms), max_num):
+            part_install_remove_rpms = install_remove_rpms[i:i+max_num]
+            rpms = " ".join(part_install_remove_rpms)
+            cmd = "yum install -y %s" % rpms
+            out, err = run_cmd(cmd)
+            print(out)
+            if ("Complete!" in out) and ("Installed:" in out):
+                print("[INFO]: Check Install %s %s succeed!" % (project, rpms))
+                cmd = "yum remove -y %s" % rpms
+                out, err = run_cmd(cmd)
+                print(out)
+                if ("Complete!" in out) and ("Removed:" in out):
+                   print("[INFO]: Check Remove %s %s succeed!" % (project, rpms))
+                elif "protected packages" in err:
+                    print(err)
+                    print("[WARNING]: %s %s unable to remove!" % (project, rpms))
+                else:
+                    print(err)
+                    print("[ERROR]: Check Remove %s %s failed!" % (project, rpms))
+            else:
+                print(err)
+                print("[ERROR]: Check Install %s %s failed!" % (project, rpms))
+                msg = get_problems(err, "Install")
+                if msg:
+                    final_msg.extend(msg)
     return final_msg
 
 def check(project_packages):
