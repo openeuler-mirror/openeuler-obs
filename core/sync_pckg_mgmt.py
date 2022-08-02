@@ -491,6 +491,52 @@ class SyncPckgMgmt(object):
                         self._del_pkg(tmp)
         return list(need_del_pkg)
 
+    def _align_meta_yaml(self, change_lists):
+        '''
+        align meta file service same with branch yaml info
+        '''
+        for branch in change_lists:
+            all_branch_pkgs = []
+            project_pkgs = {}
+            if os.path.exists(os.path.join(self.release_management_path, branch)):
+                standard_dirs = os.listdir(os.path.join(self.release_management_path, branch))
+                for standard_dir in standard_dirs:
+                    file_path = os.path.join(self.release_management_path, branch, standard_dir)
+                    if not os.path.isdir(file_path) or standard_dir == 'delete':
+                        standard_dirs.remove(standard_dir)
+                for c_dir in standard_dirs:
+                    release_path = os.path.join(self.release_management_path, branch, c_dir, 'pckg-mgmt.yaml')
+                    if os.path.exists(release_path):
+                        with open(release_path, 'r', encoding='utf-8') as f:
+                            result = yaml.load(f, Loader=yaml.FullLoader)
+                            all_branch_pkgs.extend(result['packages'])
+            for pkg in all_branch_pkgs:
+                project_pkgs.setdefault(pkg['obs_to'], []).append(pkg['name'])
+            for project, yamlpkgs in project_pkgs.items():
+                meta_pkglist = os.listdir(os.path.join(self.obs_meta_path, branch, project))
+                need_del_pkg = set(meta_pkglist) - set(yamlpkgs)
+                need_add_pkg = set(yamlpkgs) - set(meta_pkglist)
+                log.info("obs_meta %s %s redundant pkg:%s" % (branch, project, list(need_del_pkg)))
+                log.info("obs_meta %s %s lack pkg:%s" % (branch, project, list(need_add_pkg)))
+                if need_del_pkg:
+                    for del_pkg in need_del_pkg:
+                        tmp = {'pkgname': del_pkg, 'branch_to': branch, 'obs_to': project}
+                        self._del_pkg(tmp)
+                if need_add_pkg:
+                    temp_lists = []
+                    for pkg_all in all_branch_pkgs:
+                        if pkg_all['name'] in list(need_add_pkg):
+                            temp_dict = {
+                                    'pkgname':pkg_all['name'],
+                                    'branch_from':pkg_all['source_dir'],
+                                    'branch_to':pkg_all['destination_dir'],
+                                    'obs_from':pkg_all['obs_from'],
+                                    'obs_to':pkg_all['obs_to'],
+                            }
+                            temp_lists.append(temp_dict)
+                    for temp in temp_lists:
+                        self._add_pkg_service(temp)
+
 
     def _push_code(self, repo):
         """
@@ -535,7 +581,7 @@ class SyncPckgMgmt(object):
                 pull_request = "https://gitee.com/openeuler/release-management/pulls/{}".format(pr_id)
                 datestr = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
                 release_change_yaml = os.path.join(self.release_management_path, branch, "release-change.yaml")
-                with open(release_change_yaml) as file:
+                with open(release_change_yaml, encoding='utf-8') as file:
                     result = yaml.load(file, Loader=yaml.FullLoader)
                 change_dic = {
                             'pr':pull_request,
@@ -545,7 +591,7 @@ class SyncPckgMgmt(object):
                 }
                 result['release-change'].append(change_dic)
                 with open(release_change_yaml, "w", encoding='utf-8') as f:
-                    yaml.dump(result, f, default_flow_style=False, sort_keys=False)
+                    yaml.dump(result, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
                 log.info("write release change yaml file success")
             else:
                 pull_request = commitid
@@ -557,9 +603,8 @@ class SyncPckgMgmt(object):
         integration of functions
         """
         change_file = self._get_change_file()
-        master_change_file = []
         yaml_dict = {}
-        master_prj_pkg = []
+        change_branch_lists = []
         for line in change_file:
             log.info("line:%s" % line)
             name = list(line.split())[1]
@@ -590,6 +635,7 @@ class SyncPckgMgmt(object):
                 if not yaml_dict:
                     log.info("%s file content is empty!" % name)
                 elif isinstance(yaml_dict['packages'], list):
+                    change_branch_lists.append(branch_infos[0])
                     if 'delete' not in branch_infos:
                         msg, del_msg, prj_pkg = self._parse_yaml_msg(yaml_dict, "multi-new")
                         pkg_names = self._add_prj_meta_pkgs_service(msg, branch_infos)
@@ -610,6 +656,9 @@ class SyncPckgMgmt(object):
                     for tmp in del_msg:
                         self._del_pkg(tmp)
                     del_change_pkgs = self._verify_meta_file(prj_pkg)
+        if change_branch_lists:
+            change_lists = list(set(change_branch_lists))
+            self._align_meta_yaml(change_lists)
         ret = self._push_code(self.obs_meta_path)
         self._push_code(self.release_management_path)
         return ret

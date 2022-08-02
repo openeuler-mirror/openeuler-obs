@@ -858,6 +858,37 @@ class CheckReleaseManagement(object):
             raise SystemExit("ERROR: Please check your PR")
         return change_infos
 
+    def _check_internal_move(self, old_msg, new_msg):
+        '''
+        compare with old and new yaml msg, make sure internal move pkgs not repeat
+        '''
+        log.info("internal move pkgs check")
+        error_flag = False
+        for branch,new_msgs in new_msg.items():
+            if old_msg.get(branch, []):
+                temp_new = {}
+                temp_old = {}
+                old_msgs = old_msg[branch]
+                for new_pkg in new_msgs:
+                    temp_new[new_pkg['name']] = {'obs_to':new_pkg['obs_to'],'obs_from':new_pkg['obs_from'],'source_dir':new_pkg['source_dir'],'destination_dir':new_pkg['destination_dir']}
+                for old_pkg in old_msgs:
+                    temp_old[old_pkg['name']] = {'obs_to':old_pkg['obs_to'],'obs_from':old_pkg['obs_from'],'source_dir':old_pkg['source_dir'],'destination_dir':old_pkg['destination_dir']}
+                for pkgname,obsinfo in temp_new.items():
+                    if temp_old.get(pkgname,''):
+                        old_obsto = temp_old[pkgname]['obs_to']
+                        old_source = temp_old[pkgname]['source_dir']
+                        old_destination = temp_old[pkgname]['destination_dir']
+                        if obsinfo['obs_to'] != old_obsto:
+                            new_source = obsinfo['source_dir']
+                            new_destination = obsinfo['destination_dir']
+                            new_obsfrom = obsinfo['obs_from']
+                            if new_source != new_destination or new_obsfrom != old_obsto:
+                                error_flag = True
+                                log.error("{}:{}".format(pkgname, obsinfo))
+                                log.error("internal move pkg:{} source_dir must same with destination_dir and obs_from must same with before obs_to".format(pkgname))
+        if error_flag:
+            raise SystemExit("ERROR: Please check your PR")
+
     def _get_new_version_yaml_msg(self, yaml_path_list, manage_path,vtype='master'):
         '''
         get new version yaml msg content
@@ -962,6 +993,7 @@ class CheckReleaseManagement(object):
             log.info(new_version_change_file)
             change_infos = self._check_rpms_complete_and_repeat(old_new_version_msg, new_version_change_msg)
             change_delete_infos = self._ensure_delete_infos(del_old_new_version_msg, del_new_version_change_msg)
+            self._check_internal_move(old_new_version_msg, new_version_change_msg)
             self._check_key_in_yaml_new(change_infos)
             self._check_valid_release_branch(change_infos)
             date_flag = self._check_pkg_date(change_infos)
