@@ -120,6 +120,7 @@ class CheckMetaPull(object):
         log.info("line:%s" % line)
         new_file_path = ''
         complete_new_file_path = ''
+        modify_file_path = ''
         log_list = list(line.split())
         temp_log_type = log_list[0]
         if len(log_list) == 3:
@@ -133,11 +134,13 @@ class CheckMetaPull(object):
                 new_file_path = list(line.split())[2]
                 complete_new_file_path = list(line.split())[2]
         elif len(log_list) == 2:
+            if temp_log_type == "M":
+                modify_file_path = list(line.split())[1]
             if temp_log_type != "D":
                 new_file_path = list(line.split())[1]
             complete_new_file_path = list(line.split())[1]
         log.info(new_file_path)
-        return new_file_path, complete_new_file_path
+        return new_file_path, complete_new_file_path, modify_file_path
 
     def _check_file_format(self, file_path):
         """
@@ -486,14 +489,17 @@ class CheckMetaPull(object):
         changefile = self._get_change_file()
         changelist = []
         complete_changelist = []
+        modify_changelist = []
         for msg in changefile:
-            parse_git, complete_parse_git = self._parse_git_log(msg)
+            parse_git, complete_parse_git, modify_git = self._parse_git_log(msg)
             if parse_git:
                 changelist.append(parse_git)
             if complete_parse_git:
                 complete_changelist.append(complete_parse_git)
+            if modify_git:
+                modify_changelist.append(modify_git)
         if changelist or complete_changelist:
-            return changelist, complete_changelist
+            return changelist, complete_changelist, modify_changelist
         else:
             log.info("Finish!!There are no file need to check")
             sys.exit()
@@ -670,7 +676,7 @@ class CheckMetaPull(object):
                 os.system("if [ -d community ];then rm -rf community;fi")
         raise SystemExit("*******community-clone-error:please check your net*******")
 
-    def _check_pr_rule(self, release_manage, pr_file):
+    def _check_pr_rule(self, release_manage, pr_file, modify_pr_file):
         """
         check openeuler_meta pull request
         """
@@ -679,14 +685,17 @@ class CheckMetaPull(object):
         failed_msg = []
         if release_manage:
             for change_file in pr_file:
-                path_info = self._get_path_info(change_file)
-                if path_info[1] in release_manage:
-                    log.error("check pr rule failed repository path:{}".format(change_file))
-                    obs_project_name = change_file.split('/')[1]
-                    failed_flag.append('yes')
-                    failed_msg.append(obs_project_name)
+                if change_file not in modify_pr_file:
+                    path_info = self._get_path_info(change_file)
+                    if path_info[1] in release_manage:
+                        log.error("check pr rule failed repository path:{}".format(change_file))
+                        obs_project_name = change_file.split('/')[1]
+                        failed_flag.append('yes')
+                        failed_msg.append(obs_project_name)
+                    else:
+                        log.info("check pr rule success repository path:{}".format(change_file))
                 else:
-                    log.info("check pr rule success repository path:{}".format(change_file))
+                    log.info("modify file ignore check pr rule repository path:{}".format(change_file))
             if failed_flag:
                 log.error("you can not pull request in branch:{},Please refer to this issue:https://gitee.com/openeuler/release-management/issues/I4U2VN?from=project-issue".format(failed_msg))
                 raise SystemExit("*******PLEASE CHECK YOUR PR*******")
@@ -702,8 +711,8 @@ class CheckMetaPull(object):
         """
         if self.prid and self.token:
             release_management_data = self._release_management_tree()
-            change_result, complete_change_result = self._get_all_change_file()
-            pr_check_result = self._check_pr_rule(release_management_data, complete_change_result)
+            change_result, complete_change_result, modify_result = self._get_all_change_file()
+            pr_check_result = self._check_pr_rule(release_management_data, complete_change_result, modify_result)
             self._check_private_sig_pkg(change_result)
             check_result = self._check_service_meta(change_result)
         elif not self.prid and self.branch:
