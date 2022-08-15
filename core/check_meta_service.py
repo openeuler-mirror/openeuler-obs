@@ -697,7 +697,8 @@ class CheckMetaPull(object):
                 else:
                     log.info("modify file ignore check pr rule repository path:{}".format(change_file))
             if failed_flag:
-                log.error("you can not pull request in branch:{},Please refer to this issue:https://gitee.com/openeuler/release-management/issues/I4U2VN?from=project-issue".format(failed_msg))
+                log.error("you can not pull request in branch:{}".format(failed_msg))
+                log.info("Please refer to this doc to create PR in repo release-management:https://gitee.com/openeuler/release-management/blob/master/openEuler%E5%BC%80%E5%8F%91%E8%80%85%E6%8F%90%E4%BA%A4PR%E6%8C%87%E5%AF%BC%E6%96%87%E6%A1%A3.md".format(failed_msg))
                 raise SystemExit("*******PLEASE CHECK YOUR PR*******")
         else:
             log.error("get release management data failed,please check network and token")
