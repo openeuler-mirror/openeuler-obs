@@ -68,6 +68,7 @@ class ParserConfigIni(object):
         self._init_obs_prj_root_path()
         self._init_obs_ignored_package()
         self._init_obs_include_project()
+        self._init_kernel_branch()
 
     def _init_branch_list(self):
         """
@@ -209,6 +210,17 @@ class ParserConfigIni(object):
         """
         return self.obs_prj_root_path
 
+    def _init_kernel_branch(self):
+        """
+        init openEuler kernel branch
+        """
+        self.kernel_hck_branch = self.config.get("openEuler_kernel_branch", "hck_branch")
+
+    def get_kernel_branch(self):
+        """
+        get openEuler kernel branch
+        """
+        return self.kernel_hck_branch
 
 if __name__ == "__main__":
     p = ParserConfigIni()

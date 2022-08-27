@@ -70,6 +70,7 @@ class SYNCCode(object):
         self.sync_failed_rpms = []
         self.obs_ignored_package = par.get_obs_ignored_package()
         self.obs_include_project = par.get_obs_include_project()
+        self.kernel_hck_branch = par.get_kernel_branch()
 
     def _write_date_to_file(self):
         """
@@ -173,24 +174,33 @@ class SYNCCode(object):
             kernel_tags = str(self.cmd.ssh_cmd("cat %s" % tag_path)[1].strip()).split("'")[1]
             log.info(kernel_tags)
             open_kernel_path = "%s/openEuler-kernel/kernel" % source_path
+            open_kernel_hck_path = "%s/openEuler-kernel/kernel-hck" % source_path
             open_kernel_git = "https://%s:%s@gitee.com/openeuler/kernel" % (self.giteeuser, self.giteeuserpwd)
             log.info(open_kernel_git)
-            ssh_rm_result = self.cmd.ssh_cmd("rm -rf %s" % open_kernel_path)
-            log.info(ssh_rm_result)
+            pull_flag = True
             for i in range(5):
-                ssh_clone_result = self.cmd.ssh_cmd("git lfs clone --depth=1 %s -b %s %s" % (open_kernel_git,
+                self.cmd.ssh_cmd("rm -rf %s" % open_kernel_path)
+                self.cmd.ssh_cmd("git lfs clone --depth=1 %s -b %s %s" % (open_kernel_git,
                     kernel_tags, open_kernel_path), 600)
-                pull_result_last = str(self.cmd.ssh_cmd('git -C %s pull' % open_kernel_path)[1].strip()).split("'")[1]
-                if "Already" in pull_result_last:
-                    log.info(pull_result_last)
-                    log.info("kernel gitee pull success")
-                    return True
+                pull_result = str(self.cmd.ssh_cmd('git -C %s pull' % open_kernel_path)[1].strip()).split("'")[1]
+                if "Already" not in pull_result:
+                    pull_flag = False
                 else:
-                    clear_repo = self.cmd.ssh_cmd("rm -rf %s" % open_kernel_path)
-                    log.info("clear_repo: %s" % clear_repo)
-                    continue
-            log.error("kernel gitee pull failed")
-            return False
+                    log.info("openEuler kernel %s code pull success" % kernel_tags)
+                if self.gitee_branch == self.kernel_hck_branch.replace('-HCK', ''):
+                    self.cmd.ssh_cmd("rm -rf %s" % open_kernel_hck_path)
+                    self.cmd.ssh_cmd("git lfs clone --depth=1 %s -b %s %s" % (open_kernel_git, self.kernel_hck_branch, open_kernel_hck_path), 600)
+                    pull_result = str(self.cmd.ssh_cmd('git -C %s pull' % open_kernel_hck_path)[1].strip()).split("'")[1]
+                    if "Already" not in pull_result:
+                        pull_flag = False
+                    else:
+                        log.info("openEuler kernel %s code pull success" % self.kernel_hck_branch)
+                if pull_flag:
+                    return pull_flag
+                else:
+                    log.info("kernel code pull failed %d" % i)
+            log.error("kernel code pull failed finally")
+            return pull_flag
         else:
             rpm_path = source_path + '/' + self.repository
             ssh_cmd = "if [ -d %s ];then echo 'exist';else echo 'need to clone';fi" % rpm_path
