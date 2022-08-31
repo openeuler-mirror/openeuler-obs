@@ -45,6 +45,7 @@ class SyncPckgMgmt(object):
         self.release_management_path = self.kwargs['release_management_path']
         par = ParserConfigIni()
         self.obs_ignored_package = par.get_obs_ignored_package()
+        self.release_change_pkgs = dict()
 
     def _get_change_file(self):
         """
@@ -396,6 +397,18 @@ class SyncPckgMgmt(object):
                     pkg_names.append(pkg_name)
         return pkg_names
 
+    def _clear_msg_delete(self, msg, branch):
+        """
+        clear pkg if this pkg already in delete yaml
+        """
+        branch_delete_path = os.path.join(self.release_management_path, branch, 'delete', 'pckg-mgmt.yaml')
+        delete_yaml_msg = self._get_yaml_file_msg(branch_delete_path)
+        delete_packages = [pkg['name'] for pkg in delete_yaml_msg['packages']]
+        if delete_packages:
+            for i in range(len(msg)-1, -1, -1):
+                if msg[i]['pkgname'] in delete_packages:
+                    msg.pop(i)
+        return msg
 
     def _del_pkg(self, tmp):
         """
@@ -448,22 +461,26 @@ class SyncPckgMgmt(object):
                             release_changes[release_path] = [pkg_path_infos[-1]]
         return correct_del_pkgs, release_changes
 
-    def _del_pckg_from_yaml(self, release_changes):
-        if release_changes:
-            for pkgs_path, pkgs in release_changes.items():
-                result = {}
-                change_flag = False
-                complete_path = os.path.join(pkgs_path, 'pckg-mgmt.yaml')
-                old_yaml = self._get_yaml_file_msg(complete_path)
-                pkgs_list = old_yaml['packages']
-                for i in range(len(pkgs_list)-1, -1, -1):
-                    if pkgs_list[i]['name'] in pkgs:
-                        pkgs_list.pop(i)
-                        change_flag = True
-                if change_flag:
-                    result['packages'] = pkgs_list
-                    with open(complete_path, "w", encoding='utf-8') as f:
-                        yaml.dump(result, f, default_flow_style=False, sort_keys=False)
+    def _del_pckg_from_yaml(self, release_delete_changes):
+        """
+        find pkg and delete pkgs from pckg-mgmt.yaml
+        """
+        if release_delete_changes:
+            for release_changes in release_delete_changes:
+                for pkgs_path, pkgs in release_changes.items():
+                    result = {}
+                    change_flag = False
+                    complete_path = os.path.join(pkgs_path, 'pckg-mgmt.yaml')
+                    old_yaml = self._get_yaml_file_msg(complete_path)
+                    pkgs_list = old_yaml['packages']
+                    for i in range(len(pkgs_list)-1, -1, -1):
+                        if pkgs_list[i]['name'] in pkgs:
+                            pkgs_list.pop(i)
+                            change_flag = True
+                    if change_flag:
+                        result['packages'] = pkgs_list
+                        with open(complete_path, "w", encoding='utf-8') as f:
+                            yaml.dump(result, f, default_flow_style=False, sort_keys=False)
 
 
     def _verify_meta_file(self, prj_pkg):
@@ -546,7 +563,7 @@ class SyncPckgMgmt(object):
             os.chdir(repo)
             cmd = "git status -s"
             if os.popen(cmd).read():
-                cmd = "git add -A && git commit -m \"synchronize with pckg-mgmt.yaml file contents\""
+                cmd = "git pull && git add -A && git commit -m \"synchronize with pckg-mgmt.yaml file contents\""
                 if os.system(cmd) == 0:
                     cmd = "git push -f"
                     for i in range(5):
@@ -563,38 +580,74 @@ class SyncPckgMgmt(object):
             log.error("%s not exist!" % repo)
             return -1
 
-    def _write_release_yaml(self, change_pkgs, branch):
+    def _collect_release_change_pkgs(self, branch, pkgs):
+        """
+        record change pkgs in dict
+        """
+        if pkgs:
+            if self.release_change_pkgs.get(branch,[]):
+                self.release_change_pkgs[branch].extend(pkgs)
+            else:
+                self.release_change_pkgs[branch] = pkgs
+
+    def _do_git_pull(self):
+        """
+        makesure local repo same with origin master
+        """
+        os.chdir(self.release_management_path)
+        commit_cmd = 'git rev-parse HEAD'
+        commitid = os.popen(commit_cmd).read().split('\n')[0]
+        content_cmd = "git log --oneline -1"
+        content = os.popen(content_cmd).read().split('\n')[0]
+        reg=re.compile(r"(?<=!)\d+")
+        match=reg.search(content)
+        try:
+            pull_cmd = "cd {} && git pull".format(self.release_management_path)
+            if os.system(pull_cmd) == 0:
+                log.info("git pull repo success")
+                code = 0
+            else:
+                log.error("git pull repo failed")
+                code = -1
+        except OSError as e:
+            log.error(e)
+            code = -1
+        if code == -1:
+            raise SystemExit("git pull last release_management repo failed")
+        else:
+            pull_result = {'match':match, 'content':content}
+            return pull_result
+
+    def _write_release_yaml(self, pull_request):
         '''
         write change info to release_change.yaml
         '''
-        if change_pkgs and len(change_pkgs) < 50:
-            change_str = " ".join(change_pkgs)
-            os.chdir(self.release_management_path)
-            commit_cmd = 'git rev-parse HEAD'
-            commitid = os.popen(commit_cmd).read().split('\n')[0]
-            content_cmd = "git log --oneline -1"
-            content = os.popen(content_cmd).read().split('\n')[0]
-            reg=re.compile(r"(?<=!)\d+")
-            match=reg.search(content)
+        match = pull_request['match']
+        content = pull_request['content']
+        if self.release_change_pkgs:
             if match:
                 pr_id = match.group(0)
                 pull_request = "https://gitee.com/openeuler/release-management/pulls/{}".format(pr_id)
                 datestr = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-                release_change_yaml = os.path.join(self.release_management_path, branch, "release-change.yaml")
-                with open(release_change_yaml, encoding='utf-8') as file:
-                    result = yaml.load(file, Loader=yaml.FullLoader)
-                change_dic = {
-                            'pr':pull_request,
-                            'description':content,
-                            'changed_packages':change_str,
-                            'date':datestr
-                }
-                result['release-change'].append(change_dic)
-                with open(release_change_yaml, "w", encoding='utf-8') as f:
-                    yaml.dump(result, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
-                log.info("write release change yaml file success")
+                for branch, change_pkgs in self.release_change_pkgs.items():
+                    if len(change_pkgs) < 50:
+                        change_str = " ".join(change_pkgs)
+                        release_change_yaml = os.path.join(self.release_management_path, branch, "release-change.yaml")
+                        with open(release_change_yaml, encoding='utf-8') as file:
+                            result = yaml.load(file, Loader=yaml.FullLoader)
+                            change_dic = {
+                                            'pr':pull_request,
+                                            'description':content,
+                                            'changed_packages':change_str,
+                                            'date':datestr
+                                }
+                            result['release-change'].append(change_dic)
+                        with open(release_change_yaml, "w", encoding='utf-8') as f:
+                            yaml.dump(result, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+                        log.info("write {} release change yaml file success".format(branch))
+                    else:
+                        log.info("{} init pkg ignore write release change".format(branch))
             else:
-                pull_request = commitid
                 log.info("ignore write release change yaml file success")
 
 
@@ -604,7 +657,7 @@ class SyncPckgMgmt(object):
         """
         change_file = self._get_change_file()
         yaml_dict = {}
-        change_branch_lists = []
+        release_delete_changes = []
         for line in change_file:
             log.info("line:%s" % line)
             name = list(line.split())[1]
@@ -616,36 +669,37 @@ class SyncPckgMgmt(object):
                 if branch != 'delete':
                     msg, del_msg, prj_pkg = self._parse_yaml_msg(yaml_dict, "master")
                     pkg_names = self._add_prj_meta_pkgs_service(msg, branch_infos)
+                    msg = self._clear_msg_delete(msg, branch_infos[0])
                     move_change_pkgs = self._move_master_pkg_service(msg)
-                    self._write_release_yaml(move_change_pkgs, branch_infos[0])
+                    self._collect_release_change_pkgs(branch_infos[0],move_change_pkgs)
                 else:
                     msg, del_msg, prj_pkg = self._parse_yaml_msg(yaml_dict, "multi-new-delete")
                     pkgs = [tmp['pkgname'] for tmp in msg]
-                    del_change_pkgs,yaml_changes = self._del_pkg_new(pkgs, '{}'.format(branch_infos[0]))
-                    self._write_release_yaml(del_change_pkgs, branch_infos[0])
-                    self._del_pckg_from_yaml(yaml_changes)
+                    del_change_pkgs, yaml_changes = self._del_pkg_new(pkgs, '{}'.format(branch_infos[0]))
+                    release_delete_changes.append(yaml_changes)
+                    self._collect_release_change_pkgs(branch_infos[0], del_change_pkgs)
             elif 'multi_version' in branch_infos:
                 msg, del_msg, prj_pkg = self._parse_yaml_msg(yaml_dict, "multi-new")
                 pkg_names = self._add_prj_meta_pkgs_service(msg, branch_infos)
                 del_change_pkgs = self._verify_meta_file(prj_pkg)
                 change_pkgs = pkg_names + del_change_pkgs
                 complete_path = os.path.join(branch_infos[0], branch_infos[1])
-                self._write_release_yaml(change_pkgs, complete_path)
+                self._collect_release_change_pkgs(complete_path, change_pkgs)
             else:
                 if not yaml_dict:
                     log.info("%s file content is empty!" % name)
                 elif isinstance(yaml_dict['packages'], list):
-                    change_branch_lists.append(branch_infos[0])
                     if 'delete' not in branch_infos:
                         msg, del_msg, prj_pkg = self._parse_yaml_msg(yaml_dict, "multi-new")
+                        msg = self._clear_msg_delete(msg, branch_infos[0])
                         pkg_names = self._add_prj_meta_pkgs_service(msg, branch_infos)
-                        self._write_release_yaml(pkg_names, branch_infos[0])
+                        self._collect_release_change_pkgs(branch_infos[0], pkg_names)
                     else:
                         msg, del_msg, prj_pkg = self._parse_yaml_msg(yaml_dict, "multi-new-delete")
                         pkgs = [tmp['pkgname'] for tmp in msg]
                         del_change_pkgs, yaml_changes = self._del_pkg_new(pkgs, branch_infos[0])
-                        self._write_release_yaml(del_change_pkgs, branch_infos[0])
-                        self._del_pckg_from_yaml(yaml_changes)
+                        release_delete_changes.append(yaml_changes)
+                        self._collect_release_change_pkgs(branch_infos[0], del_change_pkgs)
                 else:
                     if "everything" in yaml_dict['packages'].keys():
                         msg, del_msg, prj_pkg = self._parse_yaml_msg(yaml_dict, "new")
@@ -656,9 +710,9 @@ class SyncPckgMgmt(object):
                     for tmp in del_msg:
                         self._del_pkg(tmp)
                     del_change_pkgs = self._verify_meta_file(prj_pkg)
-        if change_branch_lists:
-            change_lists = list(set(change_branch_lists))
-            self._align_meta_yaml(change_lists)
+        pull_result = self._do_git_pull()
+        self._del_pckg_from_yaml(release_delete_changes)
+        self._write_release_yaml(pull_result)
         ret = self._push_code(self.obs_meta_path)
         self._push_code(self.release_management_path)
         return ret
