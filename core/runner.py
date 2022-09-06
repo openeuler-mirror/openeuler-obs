@@ -30,6 +30,7 @@ from core.update_obs_repos import RPMManager
 from core.obs_mail_notice import ObsMailNotice
 from core.sync_pckg_mgmt import SyncPckgMgmt
 from core.check_release_management import CheckReleaseManagement
+from core.meta_service_manager import MetaServiceManager
 import os
 
 class Runner(object):
@@ -136,6 +137,15 @@ class Runner(object):
         check_mgmt = CheckReleaseManagement(**self.kwargs)
         check_mgmt.check_pckg_yaml()
 
+    def _align_meta_service(self):
+        """
+        align meta pkg service
+        return:
+        """
+        log.debug("align meta pkg service")
+        msm = MetaServiceManager(**self.kwargs)
+        msm.run()
+
     def run(self):
         """
         run main
@@ -169,3 +179,5 @@ class Runner(object):
             self._pckg_mgmt()
         elif self.kwargs["check_pckg_mgmt"] == "true":
             self._check_release_mgmt()
+        elif self.kwargs["align_meta_service"] == "true":
+            self._align_meta_service()

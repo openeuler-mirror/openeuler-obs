@@ -69,6 +69,7 @@ class ParserConfigIni(object):
         self._init_obs_ignored_package()
         self._init_obs_include_project()
         self._init_kernel_branch()
+        self._init_release_maintenance_branch()
 
     def _init_branch_list(self):
         """
@@ -140,6 +141,20 @@ class ParserConfigIni(object):
         return: include project list
         """
         return self.obs_include_projects
+
+    def _init_release_maintenance_branch(self):
+        """
+        init release maintenance branch list
+        return: None
+        """
+        self.release_maintenance_branchs = self.config.get("release_maintenance_branch", "name").split(" ")
+
+    def get_release_maintenance_branch(self):
+        """
+        get release maintenance branchs
+        return: release maintenance branch list
+        """
+        return self.release_maintenance_branchs
 
     def _init_package_info_file(self):
         """
