@@ -113,6 +113,10 @@ par.add_argument("-a", "--ALL_", default=False, help="update all obs repo rpms",
 par.add_argument("-cmp", "--compare", default=False, help="compare rpm", required=False)
 par.add_argument("-cpm", "--check_pckg_mgmt", default=False,
         help="check if there are any problems with the commi for release-management", required=False)
+par.add_argument("-ams", "--align_meta_service", default=False,
+        help="compare with repo obs_meta and release-management add or delete pkg", required=False)
+par.add_argument("-amsb", "--align_meta_service_branch", default=None,
+        help="need compare with repo obs_meta and release-management pkgs branchs", required=False)
 
 args = par.parse_args()
 #apply
@@ -158,7 +162,9 @@ kw = {
         "pckg_mgmt": args.pckg_mgmt,
         "release_management_path": args.remt,
         "check_pckg_mgmt": args.check_pckg_mgmt,
-        "compare": args.compare
+        "compare": args.compare,
+        "align_meta_service": args.align_meta_service,
+        "align_meta_service_branch": args.align_meta_service_branch
         }
 
 run = Runner(**kw)
