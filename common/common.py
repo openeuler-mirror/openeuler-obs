@@ -18,7 +18,15 @@
 function for all
 """
 import os
+import re
 import pexpect
+import requests
+import jenkins
+from requests.auth import HTTPBasicAuth
+try:
+    from urllib import urlencode
+except ImportError:
+    from urllib.parse import urlencode
 
 
 def str_to_bool(s):
@@ -117,13 +125,159 @@ class Pexpect(object):
 
         return msg
 
+class Comment(object):
+    """
+    gitee comments process
+    :param owner: 仓库属于哪个组织
+    :param repo: 仓库名
+    :param token: gitee 账户token
+    """
 
-if __name__ == "__main__":
-    res = git_repo_src("https://gitee.com/src-openeuler/zip", "xxxxx", "xxxxx")
-    print(res)
-    test = Pexpect("root", "127.0.0.1", "112233") #, port=2224)
-    res = test.ssh_cmd("osc getbinareis openEuler:20.03:LTS:Next ceph standard_x86_64 x86_64")
-    print("..................")
-    print(res)
-    res = test.scp_file("./ip.txt", "~")
-    print(res)
+    def __init__(self, owner, repo, token):
+        self._owner = owner
+        self._repo = repo
+        self._token = token
+
+
+    def comment_pr(self, pr, comment):
+        """
+        评论pull request
+        :param pr: 本仓库PR id
+        :param comment: 评论内容
+        :return: 0成功，其它失败
+        """
+        comment_pr_url = "https://gitee.com/api/v5/repos/{}/{}/pulls/{}/comments".format(self._owner, self._repo, pr)
+        data = {"access_token": self._token, "body": comment}
+        rs = self.do_requests("post", comment_pr_url, body=data, timeout=10)
+        if rs == 0:
+            return True
+        else:
+            return False
+
+    def parse_comment_to_table(self, pr, results, tips, details):
+        """
+        :param pr: 仓库PR id
+        :param results: 门禁检查返回结果
+        :return: none
+        """
+        comment_state = {"success":":white_check_mark:", "warning":":bug:", "failed":":x:"}
+        comments = ["<table>", "<tr><th colspan=2>Check Item</th> <th>Check Result</th> <th colspan=2>Description</th>"]
+        for check_item, check_result in results.items():
+            emoji_result = comment_state[check_result]
+            word_result = check_result.upper()
+            info_str = '''<tr><td colspan=2>{}</td> <td>{}
+            <strong>{}</strong></td> <td colspan=2>{}</td>
+            '''.format(check_item, emoji_result, word_result, details[check_item])
+            comments.append(info_str)
+        comments.append("</table>")
+        comments.extend(tips)
+        self.comment_pr(pr, "\n".join(comments))
+
+
+    def do_requests(self, method, url, querystring=None, body=None, auth=None, timeout=30, obj=None):
+        """
+        http request
+        :param method: http method
+        :param url: http[s] schema
+        :param querystring: dict
+        :param body: json
+        :param auth: dict, basic auth with user and password
+        :param timeout: second
+        :param obj: callback object, support list/dict/object
+        :return:
+        """
+        if method.lower() not in ["get", "post", "put", "delete"]:
+            return -1
+        if querystring:
+            url = "{}?{}".format(url, urlencode(querystring))
+        try:
+            func = getattr(requests, method.lower())
+            if body:
+                if auth:
+                    rs = func(url, json=body, timeout=timeout, auth=HTTPBasicAuth(auth["user"], auth["password"]))
+                else:
+                    rs = func(url, json=body, timeout=timeout)
+            else:
+                if auth:
+                    rs = func(url, timeout=timeout, auth=HTTPBasicAuth(auth["user"], auth["password"]))
+                else:
+                    rs = func(url, timeout=timeout)
+            if rs.status_code not in [requests.codes.ok, requests.codes.created, requests.codes.no_content]:
+                return 1
+            # return response
+            if obj is not None:
+                if isinstance(obj, list):
+                    obj.extend(rs.json())
+                elif isinstance(obj, dict):
+                    obj.update(rs.json())
+                elif callable(obj):
+                    obj(rs)
+                elif hasattr(obj, "cb"):
+                    getattr(obj, "cb")(rs.json())
+            return 0
+        except requests.exceptions.SSLError as sslerror:
+            return -2
+        except requests.exceptions.Timeout as timeouterror:
+            return 2
+        except requests.exceptions.RequestException as excepterror:
+            return 3
+
+class JenkinsProxy(object):
+    """
+    Jenkins 代理，实现jenkins一些操作
+    """
+
+    def __init__(self, base_url, username, token, timeout=10):
+        """
+
+        :param base_url:
+        :param username: 用户名
+        :param token:
+        :param timeout:
+        """
+        self._username = username
+        self._token = token
+        self._timeout = timeout
+        self._jenkins = jenkins.Jenkins(base_url, username=username, password=token, timeout=timeout)
+
+    def get_job_info(self, job_path):
+        """
+        获取任务信息
+        :param job_path: job路径
+        :return: None if job_path not exist
+        """
+        try:
+            return self._jenkins.get_job_info(job_path)
+        except jenkins.JenkinsException as e:
+            return None
+
+    @classmethod
+    def get_job_path_from_job_url(cls, job_url):
+        """
+        从url中解析job路径
+        :param job_url: 当前工程url, for example https://domain/job/A/job/B/job/C
+        :return: for example, A/B/C
+        :2 :代表目录层级
+        """
+        jenkins_first_level_dir_index = 2
+        jenkins_dir_interval_with_level = 2
+        job_path = re.sub(r"/$", "", job_url)
+        job_path = re.sub(r"http[s]?://", "", job_path)
+        sp = job_path.split("/")[jenkins_first_level_dir_index::
+                                 jenkins_dir_interval_with_level]
+        sp = [item for item in sp if item != ""]
+        job_path = "/".join(sp)
+        return job_path
+
+    @staticmethod
+    def get_job_path_build_no_from_build_url(build_url):
+        """
+        从url中解析job路径
+        :param build_url: 当前构建url, for example https://domain/job/A/job/B/job/C/number/
+        :return: for example A/B/C/number
+        """
+        job_build_no = re.sub(r"/$", "", build_url)
+        job_url = os.path.dirname(job_build_no)
+        build_no = os.path.basename(job_build_no)
+        job_path = JenkinsProxy.get_job_path_from_job_url(job_url)
+        return job_path, build_no

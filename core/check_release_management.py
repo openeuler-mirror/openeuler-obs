@@ -17,6 +17,7 @@
 check the software package for the corresponding project of thecorresponding branch of source
 """
 import os
+import re
 import sys
 import yaml
 import requests
@@ -26,6 +27,8 @@ sys.path.append(os.path.join(Now_path, ".."))
 from common.log_obs import log
 from collections import Counter
 from common.common import git_repo_src
+from common.common import Comment
+from common.common import JenkinsProxy
 
 class CheckReleaseManagement(object):
     """
@@ -40,11 +43,26 @@ class CheckReleaseManagement(object):
         """
         self.kwargs = kwargs
         self.prid = self.kwargs['pr_id']
+        self.token = self.kwargs['access_token']
         self.current_path = os.getcwd()
         self.meta_path = self.kwargs['obs_meta_path']
         self.manage_path = self.kwargs['release_management_path']
         self.giteeuser = self.kwargs['gitee_user']
         self.giteeuserpwd = self.kwargs['gitee_pwd']
+        self.jenkins_user = self.kwargs['jenkins_user']
+        self.jenkins_api_token = self.kwargs['jenkins_api_token']
+        self.jenkins_build_url = self.kwargs['jenkins_build_url']
+        self.job_result = {
+                'check_yaml_format':'success',
+                'check_package_yaml_key':'success',
+                'check_package_complete':'success',
+                'check_package_requires':'success',
+                'check_package_add':'success',
+                'check_package_move':'success',
+                'check_package_delete':'success',
+                'valied_package_source':'success',
+                'check_date':'success'
+                }
 
     def _clean(self, pkgname):
         """
@@ -153,6 +171,7 @@ class CheckReleaseManagement(object):
             return new_file_path,master_new_file_path,new_versin_file_path
         else:
             log.info("There are no file need to check!!!")
+            self._comment_to_pr()
             sys.exit()
 
     def _get_yaml_msg(self, yaml_path_list, manage_path, rollback=None):
@@ -213,6 +232,8 @@ class CheckReleaseManagement(object):
                 del error_pkg[change_file]
         if error_pkg:
             log.error("May be {0} should not be delete".format(error_pkg))
+            self.job_result['check_package_complete'] = 'failed'
+            self._comment_to_pr()
             raise SystemExit("ERROR: Please check your PR")
 
     def _check_key_in_yaml(self, all_pack_msg, change_file):
@@ -234,6 +255,8 @@ class CheckReleaseManagement(object):
                     error_flag = True
                     log.error("Please check {0}".format(msg))
         if error_flag:
+            self.job_result['check_package_yaml_key'] = 'failed'
+            self._comment_to_pr()
             raise SystemExit("ERROR: Please ensure the following key values in your yaml")
 
     def _check_date_time(self, yaml_msg, change_file):
@@ -252,6 +275,7 @@ class CheckReleaseManagement(object):
                     log.error(msg)
                     log.error("Wrong Date: <date:{0}>!!!".format(msg['date']))
         if error_flag:
+            self.job_result['check_date'] = 'failed'
             log.error("Please set your date to the same day as the commit time!!!")
         return error_flag
 
@@ -271,6 +295,7 @@ class CheckReleaseManagement(object):
                     yaml_key = os.path.join(msg['branch_from'],
                             msg['obs_from'], msg['name'])
                     log.error("The {0} not exist in obs_meta".format(yaml_key))
+                    self.job_result['check_package_add'] = 'failed'
                     error_flag = True
         return error_flag
 
@@ -321,6 +346,7 @@ class CheckReleaseManagement(object):
             return change_list
         else:
             log.info("The are no new msg in your yaml!!!")
+            self._comment_to_pr()
             sys.exit()
 
     def _check_yaml_format(self, yaml_path_list, manage_path):
@@ -336,6 +362,8 @@ class CheckReleaseManagement(object):
             except Exception as e:
                 log.error("**********FORMAT ERROR***********")
                 log.error("%s format bad Because:%s" % (yaml_path, e))
+                self.job_result['check_yaml_format'] = 'failed'
+                self._comment_to_pr()
                 raise SystemExit("May be %s has a bad format" % yaml_path)
 
     def _check_same_pckg(self, change_file_path, yaml_msg):
@@ -355,6 +383,7 @@ class CheckReleaseManagement(object):
         if all_pkg_name:
             log.error("The following packages are duplicated in the YAML files")
             log.error(all_pkg_name)
+            self.job_result['check_package_complete'] = 'failed'
             return True
         else:
             return False
@@ -385,6 +414,7 @@ class CheckReleaseManagement(object):
                 for msg in error_msg[yaml_path]:
                     log.error(msg)
         if error_msg:
+            self.job_result['valied_package_source'] = 'failed'
             return True
         else:
             return False
@@ -421,6 +451,8 @@ class CheckReleaseManagement(object):
                 del info_dict[change]
         if error_flag:
             log.error("Check the delete group in the {0}!!!".format(info_dict))
+            self.job_result['check_package_delete'] = 'failed'
+            self._comment_to_pr()
             raise SystemExit("ERROR:Please check your PR")
 
     def _get_move_and_add(self,old_msg,new_msg):
@@ -488,6 +520,7 @@ class CheckReleaseManagement(object):
                     else:
                         error_infos[c_branch] = [pkg]
         if error_infos:
+            self.job_result['check_package_add'] = 'failed'
             log.error("some errors in your commit,please check: {}".format(error_infos))
         return error_flag
 
@@ -512,6 +545,7 @@ class CheckReleaseManagement(object):
                             add_names.remove(name)
             if add_names:
                 error_flag = True
+                self.job_result['check_package_delete'] = 'failed'
                 log.error("master branch pkg name:{} you want delete not exist in obs_meta!!!".format(add_names))
         return error_flag
 
@@ -584,6 +618,7 @@ class CheckReleaseManagement(object):
                 else:
                     error_infos[branch] = [pkg]
         if error_infos:
+            self.job_result['check_package_move'] = 'failed'
             log.error("some errors in your commit,please check: {}".format(error_infos))
         return error_flag
 
@@ -610,6 +645,7 @@ class CheckReleaseManagement(object):
                         else:
                             error_infos[branch] = [pkg]
         if error_infos:
+            self.job_result['check_date'] = 'failed'
             log.error("some errors in your commit,please check: {}".format(error_infos))
         return error_flag
 
@@ -631,11 +667,14 @@ class CheckReleaseManagement(object):
         error_master_pkgs = list(set(old_pkgs).difference(set(pkgs)))
         if error_master_pkgs:
             error_flag = True
+            self.job_result['check_package_complete'] = 'failed'
             log.error("The following {0} packages should not deleted in the master YAML files".format(error_master_pkgs))
         if duplicated:
             error_flag = True
+            self.job_result['check_package_complete'] = 'failed'
             log.error("The following {0} packages are duplicated in the master YAML files".format(duplicated))
         if error_flag:
+            self._comment_to_pr()
             raise SystemExit("ERROR: Please check your PR")
 
     def _check_pkg_from_new(self, meta_path, change_info):
@@ -674,6 +713,7 @@ class CheckReleaseManagement(object):
                             pkgs.remove(name)
                 if pkgs:
                     log.error("The {0} not exist in obs_meta dir {1}".format(pkgs,branch))
+                    self.job_result['check_package_delete'] = 'failed'
                     error_flag = True
         return error_flag
 
@@ -714,6 +754,7 @@ class CheckReleaseManagement(object):
                                     break
                 if error_names:
                     error_flag =True
+                    self.job_result['check_package_add'] = 'failed'
                     for pkg in pkgs:
                         if pkg['name'] in error_names:
                             log.error("branch:{}:The {} not exist in obs_meta from dir {}/{}".format(branch, pkg['name'], pkg['source_dir'], pkg['obs_from']))
@@ -740,6 +781,8 @@ class CheckReleaseManagement(object):
                         error_flag = True
                         log.error("Please check {0}".format(msg))
         if error_flag:
+            self.job_result['check_package_yaml_key'] = 'failed'
+            self._comment_to_pr()
             raise SystemExit("ERROR: Please ensure the following key values in your yaml")
 
     def _check_valid_release_branch(self, change_info):
@@ -761,6 +804,8 @@ class CheckReleaseManagement(object):
                     error_flag = True
                     log.error("pkg:{} souce_dir or destination_dir valid check error".format(pkg['name']))
         if error_flag:
+            self.job_result['valied_package_source'] = 'failed'
+            self._comment_to_pr()
             raise SystemExit("ERROR: Please ensure the source_dir and destination_dir adapt rules")
 
     def _check_pkg_date(self, change_info):
@@ -776,6 +821,7 @@ class CheckReleaseManagement(object):
                 yaml_date = int(pkg['date'].split('-')[2])
                 if today != yaml_date:
                     error_flag = True
+                    self.job_result['check_date'] = 'failed'
                     log.error("Wrong Date: <date:{0}>!!!".format(pkg['date']))
         return error_flag
 
@@ -852,9 +898,13 @@ class CheckReleaseManagement(object):
                     log.info(pkg)
         if error_pkg_flag:
             log.error("May be {0} should not be delete".format(error_pkg))
+            self.job_result['check_package_complete'] = 'failed'
+            self._comment_to_pr()
             raise SystemExit("ERROR: Please check your PR")
         if same_pkg_flag:
             log.error("The following {0} packages are duplicated in the YAML files".format(same_pkg))
+            self.job_result['check_package_complete'] = 'failed'
+            self._comment_to_pr()
             raise SystemExit("ERROR: Please check your PR")
         return change_infos
 
@@ -864,15 +914,16 @@ class CheckReleaseManagement(object):
         '''
         log.info("internal move pkgs check")
         error_flag = False
+        internal_move_pkgs = {}
         for branch,new_msgs in new_msg.items():
             if old_msg.get(branch, []):
                 temp_new = {}
                 temp_old = {}
                 old_msgs = old_msg[branch]
                 for new_pkg in new_msgs:
-                    temp_new[new_pkg['name']] = {'obs_to':new_pkg['obs_to'],'obs_from':new_pkg['obs_from'],'source_dir':new_pkg['source_dir'],'destination_dir':new_pkg['destination_dir']}
+                    temp_new[new_pkg['name']] = {'name':new_pkg['name'],'obs_to':new_pkg['obs_to'],'obs_from':new_pkg['obs_from'],'source_dir':new_pkg['source_dir'],'destination_dir':new_pkg['destination_dir']}
                 for old_pkg in old_msgs:
-                    temp_old[old_pkg['name']] = {'obs_to':old_pkg['obs_to'],'obs_from':old_pkg['obs_from'],'source_dir':old_pkg['source_dir'],'destination_dir':old_pkg['destination_dir']}
+                    temp_old[old_pkg['name']] = {'name':old_pkg['name'],'obs_to':old_pkg['obs_to'],'obs_from':old_pkg['obs_from'],'source_dir':old_pkg['source_dir'],'destination_dir':old_pkg['destination_dir']}
                 for pkgname,obsinfo in temp_new.items():
                     if temp_old.get(pkgname,''):
                         old_obsto = temp_old[pkgname]['obs_to']
@@ -886,7 +937,14 @@ class CheckReleaseManagement(object):
                                 error_flag = True
                                 log.error("{}:{}".format(pkgname, obsinfo))
                                 log.error("internal move pkg:{} source_dir must same with destination_dir and obs_from must same with before obs_to".format(pkgname))
+                            else:
+                                if internal_move_pkgs.get(branch, []):
+                                    internal_move_pkgs[branch].append(obsinfo)
+                                else:
+                                    internal_move_pkgs[branch] = [obsinfo]
         if error_flag:
+            self.job_result['check_package_move'] = 'failed'
+            self._comment_to_pr()
             raise SystemExit("ERROR: Please check your PR")
 
     def _get_new_version_yaml_msg(self, yaml_path_list, manage_path,vtype='master'):
@@ -958,6 +1016,35 @@ class CheckReleaseManagement(object):
            all_master_pkgs = self._get_complete_yaml_pkgs('master')
         return all_master_pkgs
 
+    def _comment_to_pr(self):
+        """
+        gitee comment and jenkins api comment check result to pr
+        """
+        comment_tips = []
+        jp = JenkinsProxy("https://openeulerjenkins.osinfra.cn/", self.jenkins_user, self.jenkins_api_token)
+        build_url = self.jenkins_build_url
+        job_name, job_id = jp.get_job_path_build_no_from_build_url(build_url)
+        comment_tips.append("1)本次构建号为{2}/{1}，点击可查看构建详情: <a href={0}>#{1}</a>\n".format(build_url,job_id,job_name))
+        comment_tips.append("2)若有检查失败项目，请勿合入")
+        comment_tips.append("3)若您对如何创建提交PR有疑问，" \
+                       "可参考<a href=https://gitee.com/openeuler/release-management/blob/master/openEuler%E5%BC%80%E5%8F%91%E8%80%85%E6%8F%90%E4%BA%A4PR%E6%8C%87%E5%AF%BC%E6%96%87%E6%A1%A3.md>" \
+                       "开发者提交PR指导手册</a>")
+        details = {
+                    'check_yaml_format':"检查yaml格式是否正确",
+                    'check_package_yaml_key':"检查yaml中包key填写是否正确",
+                    'check_package_complete':"检查是否误删包或者增加不应添加的包",
+                    'check_package_requires':"检查分支内某project移动的包是否被同project内其他包所依赖",
+                    'check_package_add':"检查向project内添加包是否符合规则",
+                    'check_package_move':"检查分支内包移动是否符合规则",
+                    'check_package_delete':"检查删除包是否符合规则",
+                    'valied_package_source':"检查包引入时的引入分支是否符合规则",
+                    'check_date':"日期检查,必须与提交日期一致"
+        }
+        repo_owner = 'openeuler'
+        repo = 'release-management'
+        gm = Comment(repo_owner, repo, self.token)
+        gm.parse_comment_to_table(self.prid, self.job_result, comment_tips, details)
+
     def check_pckg_yaml(self):
         """
         check the obs_from branch_from in pckg-mgmt.yaml
@@ -988,6 +1075,7 @@ class CheckReleaseManagement(object):
             del_flag = self._check_master_del_rules(del_old_master_yaml_msg, del_master_change_yaml_msg)
             date_flag = self._check_master_date_rules(add_infos)
             if add_flag or move_flag or date_flag or del_flag:
+                self._comment_to_pr()
                 raise SystemExit("Please check your commit")
         if new_version_change_file:
             log.info(new_version_change_file)
@@ -1001,6 +1089,7 @@ class CheckReleaseManagement(object):
             error_flag_add = self._check_pkg_parent_from(change_infos, correct_from, error_from, add_infos)
             error_flag_del = self._check_pkg_delete_new(self.meta_path, change_delete_infos)
             if error_flag_add or error_flag_del or date_flag:
+                self._comment_to_pr()
                 raise SystemExit("Please check your commit")
         if change_file:
             log.info(change_file)
@@ -1013,7 +1102,9 @@ class CheckReleaseManagement(object):
             error_flag3 = self._check_same_pckg(change_file, change_yaml_msg)
             error_flag4 = self._check_branch_msg(change_msg_list, change_file, self.manage_path)
             if error_flag1 or error_flag2 or error_flag3 or error_flag4:
+                self._comment_to_pr()
                 raise SystemExit("Please check your commit")
+        self._comment_to_pr()
 
 if __name__ == "__main__":
     kw = {"branch":"master",
