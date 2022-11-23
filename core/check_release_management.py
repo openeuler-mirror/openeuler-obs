@@ -52,6 +52,7 @@ class CheckReleaseManagement(object):
         self.jenkins_user = self.kwargs['jenkins_user']
         self.jenkins_api_token = self.kwargs['jenkins_api_token']
         self.jenkins_build_url = self.kwargs['jenkins_build_url']
+        self.retry_times = 5
         self.job_result = {
                 'check_yaml_format':'success',
                 'check_package_yaml_key':'success',
@@ -61,7 +62,8 @@ class CheckReleaseManagement(object):
                 'check_package_move':'success',
                 'check_package_delete':'success',
                 'valied_package_source':'success',
-                'check_date':'success'
+                'check_date':'success',
+                'check_package_branch':'success'
                 }
 
     def _clean(self, pkgname):
@@ -1016,6 +1018,49 @@ class CheckReleaseManagement(object):
            all_master_pkgs = self._get_complete_yaml_pkgs('master')
         return all_master_pkgs
 
+    def _check_pkg_branch_exist(self, add_infos, check_type='master'):
+        """
+        check the pkg whether the branch is exist
+        """
+        error_flag = False
+        log.info("pkg branch exist check...")
+        for branch,pkgs in add_infos.items():
+            for pkg in pkgs:
+                if pkg.get('destination_dir',''):
+                    check_branch = pkg['destination_dir']
+                else:
+                    if check_type != 'master':
+                        log.error("{} destination_dir is empty,please check".format(pkg['name']))
+                        error_flag = True
+                        self.job_result['check_package_branch'] = 'failed'
+                        break
+                    else:
+                        check_branch = check_type
+                api_url = "https://gitee.com/api/v5/repos/src-openeuler/%s" % pkg['name'] + \
+                "/branches/%s?access_token=%s" % (check_branch, self.token)
+                retries = 0
+                while retries < self.retry_times:
+                    try:
+                        response = requests.request(method='get', url=api_url)
+                        response_data = response.json()
+                        response_branch = response_data.get('name','')
+                        if response.status_code == 200 and response_branch == check_branch:
+                            log.info("{} in branch {} is exist".format(pkg['name'], check_branch))
+                            break
+                        else:
+                            error_flag = True
+                            self.job_result['check_package_branch'] = 'failed'
+                            log.error("{} in branch {} is not exist".format(pkg['name'], check_branch))
+                            break
+                    except Exception as e:
+                        log.info("try to request data from gitee {} failed,retry!!!".format(retries))
+                        retries += 1
+                        if retries == self.retry_times:
+                            error_flag = True
+                            self.job_result['check_package_branch'] = 'failed'
+                            log.error("{} in {} can not get branch information from gitee".format(pkg['name'], check_branch))
+        return error_flag
+
     def _comment_to_pr(self):
         """
         gitee comment and jenkins api comment check result to pr
@@ -1038,7 +1083,8 @@ class CheckReleaseManagement(object):
                     'check_package_move':"检查分支内包移动是否符合规则",
                     'check_package_delete':"检查删除包是否符合规则",
                     'valied_package_source':"检查包引入时的引入分支是否符合规则",
-                    'check_date':"日期检查,必须与提交日期一致"
+                    'check_date':"日期检查,必须与提交日期一致",
+                    'check_package_branch':"检查包目标分支是否存在"
         }
         repo_owner = 'openeuler'
         repo = 'release-management'
@@ -1074,7 +1120,8 @@ class CheckReleaseManagement(object):
             move_flag = self._check_master_move_rules(move_infos)
             del_flag = self._check_master_del_rules(del_old_master_yaml_msg, del_master_change_yaml_msg)
             date_flag = self._check_master_date_rules(add_infos)
-            if add_flag or move_flag or date_flag or del_flag:
+            branch_flag = self._check_pkg_branch_exist(add_infos)
+            if add_flag or move_flag or date_flag or del_flag or branch_flag:
                 self._comment_to_pr()
                 raise SystemExit("Please check your commit")
         if new_version_change_file:
@@ -1085,10 +1132,11 @@ class CheckReleaseManagement(object):
             self._check_key_in_yaml_new(change_infos)
             self._check_valid_release_branch(change_infos)
             date_flag = self._check_pkg_date(change_infos)
+            branch_flag = self._check_pkg_branch_exist(change_infos, check_type='other')
             correct_from, error_from = self._check_pkg_from_new(self.meta_path, change_infos)
             error_flag_add = self._check_pkg_parent_from(change_infos, correct_from, error_from, add_infos)
             error_flag_del = self._check_pkg_delete_new(self.meta_path, change_delete_infos)
-            if error_flag_add or error_flag_del or date_flag:
+            if error_flag_add or error_flag_del or date_flag or branch_flag:
                 self._comment_to_pr()
                 raise SystemExit("Please check your commit")
         if change_file:
