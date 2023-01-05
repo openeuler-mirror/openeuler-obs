@@ -361,6 +361,24 @@ class CheckMetaPull(object):
             log.info("Success:The %s exit in %s" % (repository, project))
         return error_flag
 
+    def _check_meta_project_same_with_origin(self, pro_repo, change_file):
+        error_flag = None
+        path_list = change_file.split('/')
+        multi_project_name = path_list[-1]
+        log.info("meta file multi_project_name:{}".format(multi_project_name))
+        for msg in pro_repo:
+            msglist = str(msg).split()
+            for key in msglist:
+                if "project=" in key:
+                    project = key.split("\"")[1]
+            origin_project = project.replace(":selfbuild:BaseOS","")
+            log.info("meta file origin_project_name:{}".format(origin_project))
+            if origin_project not in multi_project_name:
+                log.error("The _meta file project not same with project name!!!!!!")
+                error_flag = "yes"
+        return error_flag
+
+
     def _check_pro_meta(self, pkg_path):
         """
         check the _meta have the maintainer or path is or not
@@ -369,6 +387,7 @@ class CheckMetaPull(object):
         error_flag1 = self._check_file_format(pkg_path)
         error_flag2 = ""
         error_flag3 = ""
+        error_flag4 = ""
         with open(pkg_path, "r") as f:
             parse = f.read()
             log.info('\n' + parse)
@@ -381,7 +400,9 @@ class CheckMetaPull(object):
             error_flag2 = "yes"
             log.error("The _meta file does not have the maintainers section!!!!!!")
         error_flag3 = self._check_meta_pro_and_repo(pro_repo)
-        error_flag = error_flag1 or error_flag2 or error_flag3
+        if "multi" in pkg_path or "Multi-Version" in pkg_path:
+            error_flag4 = self._check_meta_project_same_with_origin(pro_repo, pkg_path)
+        error_flag = error_flag1 or error_flag2 or error_flag3 or error_flag4
         if error_flag == "yes":
             self.check_error.append(pkg_path)
         return error_flag
