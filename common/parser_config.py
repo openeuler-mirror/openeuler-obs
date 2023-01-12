@@ -70,6 +70,7 @@ class ParserConfigIni(object):
         self._init_obs_include_project()
         self._init_kernel_branch()
         self._init_release_maintenance_branch()
+        self._init_need_ccb_branch()
 
     def _init_branch_list(self):
         """
@@ -155,6 +156,20 @@ class ParserConfigIni(object):
         return: release maintenance branch list
         """
         return self.release_maintenance_branchs
+
+    def _init_need_ccb_branch(self):
+        """
+        init need ccb branch list
+        return: None
+        """
+        self.need_ccb_branchs = self.config.get("need_ccb_branch", "name").split(" ")
+
+    def get_need_ccb_branch(self):
+        """
+        get need ccb branchs
+        return: need ccb branch list
+        """
+        return self.need_ccb_branchs
 
     def _init_package_info_file(self):
         """
