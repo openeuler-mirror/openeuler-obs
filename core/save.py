@@ -144,7 +144,7 @@ class SaveInfo(object):
                         log.debug(cmd)
                         res = os.popen(cmd).read()
                         if res:
-                            code_update_time = res.replace('"', '').replace("T", " ").replace(":", "-").replace("\n", "")
+                            code_update_time = res.replace('"', '').replace("T", " ").replace("-", "").replace(":", "-").replace("\n", "")
                         log.info("code_update_time:%s" % code_update_time)
                         cmd = "ccb select projects os_project=%s submit_order -f my_specs 2>/dev/null | grep spec_url" % prj
                         log.debug(cmd)
