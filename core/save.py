@@ -112,7 +112,7 @@ class SaveInfo(object):
                 timestr = os.popen(cmd).read().replace("\n", "")
             else:
                 timestr = 0
-            cmd = "osc list -b %s %s 2>/dev/null | grep rpm" % (prj, pkg)
+            cmd = "osc list -b %s %s 2>/dev/null | grep rpm | grep -v 'sw_64'" % (prj, pkg)
             log.debug(cmd)
             rpms = ' '.join(list(set(os.popen(cmd).read().replace(" ", "").split("\n")) - set([''])))
         f_csv.writerow([timestr, pkg, rpms])
