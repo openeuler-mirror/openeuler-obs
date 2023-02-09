@@ -137,7 +137,7 @@ class SYNCCode(object):
         obs_project = None
         for project in all_project:
             obs_project = project.replace('\n', '')
-            if ":Bak" in obs_project:
+            if ":Bak" in obs_project or 'RISC-V' in obs_project:
                 continue
             else:
                 break
