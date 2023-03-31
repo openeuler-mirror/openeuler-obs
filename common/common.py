@@ -22,6 +22,8 @@ import re
 import pexpect
 import requests
 import jenkins
+import subprocess
+from common.log_obs import log
 from requests.auth import HTTPBasicAuth
 try:
     from urllib import urlencode
@@ -35,6 +37,22 @@ def str_to_bool(s):
     """
     return s.lower() in ("yes", "true", "t", "1")
 
+def run(cmd, timeout=600, print_out=False):
+    """
+    run shell cmd
+    :param cmd: command
+    :param timeout: timeout
+    :param print_out: print out or not
+    :return: return code, stdout, stderr
+    """
+    ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, encoding="utf-8", timeout=timeout)
+    log.info("cmd: {}".format(cmd))
+    if ret.stdout and print_out:
+        log.info("ret.stdout: {}".format(ret.stdout))
+    if ret.stderr:
+        log.warning("ret.stderr: {}".format(ret.stderr))
+    return ret.returncode, ret.stdout, ret.stderr
 
 def git_repo_src(repo_url, gitee_user_name, gitee_user_pwd, dest_dir=None):
     """
