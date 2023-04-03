@@ -14,12 +14,14 @@
 import os
 import sys
 import csv
+import yaml
 import shutil
 import filecmp
 import datetime
 import logging
 import argparse
 import subprocess
+import requests
 
 LOG_FORMAT = "%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -47,7 +49,7 @@ def write_to_csv(file_path, csv_data):
     """
     write data to csv
     :param file_path: csv file path to write
-    :param csv date: csv data
+    :param csv_date: csv data
     :return: 
     """
     if not csv_data:
@@ -62,10 +64,25 @@ def write_to_csv(file_path, csv_data):
             writer.writerow(line)
 
 
-def update_csv_to_obs(file_path):
+def write_to_yaml(file_path, yaml_data):
+    """
+    write data to yaml
+    :param file_path: yaml file path to write
+    :param yaml_date: yaml data
+    :return: 
+    """
+    if not yaml_data:
+        logging.warning(f"{file_path} has nothing to write")
+        return
+    with open(file_path, "w", encoding="utf-8") as yaml_file:
+        yaml.safe_dump(yaml_data, yaml_file, default_flow_style=False, sort_keys=False)
+
+
+def update_csv_to_obs(file_path, num):
     """
     update csv to obs
     :param file_path: csv file path
+    :param num: obs csv file num for each project
     :return: 
     """
     prefix = file_path.split("-")[0]
@@ -98,6 +115,18 @@ def update_csv_to_obs(file_path):
             shutil.copy(file_path, obs_path)
             shutil.copy(latest_csv_path, obs_path)
             os.chdir(obs_path)
+            # keep obs csv file num
+            file_list = os.listdir("./")
+            file_list.sort()
+            file_list.reverse()
+            file_num = 0
+            num = int(num)
+            for csv_file in file_list:
+                if csv_file.startswith(f"{prefix}-"):
+                    if not csv_file.endswith("-latest.csv"):
+                        file_num += 1
+                    if file_num > num:
+                        os.remove(csv_file)
             cmd = "osc addremove && osc ci -n"
             _, out, _ = run(cmd, print_out=True)
             if "Committed revision" in out:
@@ -122,33 +151,57 @@ class ProjectParser:
         self.arch = self.kwargs.get("arch", "")
         self.failed_package_list = []
 
-    def parse_failed_package(self):
+    def parse_all_package(self):
         """
         parse project failed packages
         :return: failed package info list
         """
         arch_list = self.arch.split(",")
         for arch in arch_list:
-            cmd = f"osc r {self.project} -a {arch} --csv | grep failed"
+            cmd = f"osc r {self.project} -a {arch} --csv"
             _, out, _ = run(cmd, print_out=True)
             if out:
                 for line in out.splitlines():
                     package_dict = {}
                     if ";" in line:
                         package = line.split(";")[0]
-                        package_dict["package"] = package
-                        package_dict["project"] = self.project
-                        package_dict["arch"] = arch
-                        failed_type = self.get_package_failed_type(package, arch)
-                        package_dict["failed_type"] = failed_type
-                        self.failed_package_list.append(package_dict)
+                        if package != '_':
+                            package_dict["package"] = package
+                            package_dict["project"] = self.project
+                            package_dict["status"] = line.split(";")[1]
+                            package_dict["arch"] = arch
+                            if line.split(";")[1] == 'failed':
+                                failed_type, failed_detail = self.get_package_failed_type(package, arch)
+                                package_dict["failed_type"] = failed_type
+                                package_dict["failed_detail"] = failed_detail
+                            else:
+                                package_dict["failed_type"] = ''
+                                package_dict["failed_detail"] = ''
+                            self.failed_package_list.append(package_dict)
 
         if self.failed_package_list:
-             logging.warning(f"failed package num: {len(self.failed_package_list)}")
-             logging.warning(f"failed package list: {self.failed_package_list}")
-        else:
-             logging.info("failed package num: 0")
+             logging.warning(f"all arch package num: {len(self.failed_package_list)}")
+             # logging.warning(f"failed package list: {self.failed_package_list}")
         return self.failed_package_list
+
+    def post_to_api(self, filename):
+        filepath = os.path.join(os.getcwd(), filename)
+        datestr = datetime.datetime.now().strftime('%Y-%m-%d') 
+        url = "https://radiatest.openeuler.org/api/v1/rpmcheck"
+        # url = "https://123.60.114.22:1454/api/v1/rpmcheck"
+        files = {
+            "file": (filename, open(filepath, "rb"))
+        }
+        data = {
+            "product": self.project.replace(':','-'),
+            "build": datestr
+        }
+        logging.info("post data: {}".format(data))
+        response = requests.post(url=url, files=files, data=data)
+        response_json = response.json()
+        logging.info(response_json)
+        response_code = response_json.get('error_code',0)
+        return response_code
 
     def get_package_failed_type(self, package, arch):
         """
@@ -158,25 +211,39 @@ class ProjectParser:
         :return: package failed type, default: unknown_failed
         """
         failed_type = "unknown_failed"
+        failed_detail = ""
         build_log_cmd = f"osc remotebuildlog {self.project} {package} standard_{arch} {arch}"
-        _, out, _ = run(build_log_cmd)
+        try:
+            _, out, _ = run(build_log_cmd)
+        except Exception as e:
+           logging.warning(f"run {build_log_cmd} exception: {e}")
+           out = ""
         if out:
             for line in out.splitlines():
+                if ("error: " in line) or ("Error: " in line):
+                    failed_detail = line
                 if "error: Bad exit status" in line:
                     failed_type = line.split()[-1]
                     failed_type = failed_type.replace("(%", "")
                     failed_type = failed_type.replace(")", "")
                     failed_type = f"{failed_type}_failed"
+                    failed_detail = line
 
-        return failed_type
+            if "]" in failed_detail:
+                failed_detail = failed_detail.split("]")[-1].strip()
+
+        return failed_type, failed_detail
 
 
 if __name__ == "__main__":
     par = argparse.ArgumentParser()
-    par.add_argument("-p", "--project", default="", help="obs project", required=False)
+    par.add_argument("-p", "--project", default="", help="obs project", required=True)
     par.add_argument("-a", "--arch", default="x86_64,aarch64", help="obs project arch", required=False)
     par.add_argument("-w", "--write_to_csv", default="True", help="write failed to csv or not", required=False)
     par.add_argument("-u", "--update_csv_to_obs", default="True", help="update failed csv to obs", required=False)
+    par.add_argument("-n", "--num", default="10", help="keep obs csv file num", required=False)
+    par.add_argument("-y", "--write_to_yaml", default="True", help="write failed to yaml or not", required=False)
+    par.add_argument("-pt", "--post_to_api", default="True", help="post yaml file to radiatest", required=False)
     args = par.parse_args()
 
     kw = {
@@ -185,19 +252,28 @@ if __name__ == "__main__":
     }
 
     project_parser = ProjectParser(**kw)
-    failed_package_list = project_parser.parse_failed_package()
+    failed_package_list = project_parser.parse_all_package()
 
     exit_code = 0
-    if args.write_to_csv == "True":
+    # if args.write_to_csv == "True":
+    #     if failed_package_list:
+    #         project_name = args.project.replace(":", "_")
+    #         time = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+    #         csv_path = f"{project_name}-{time}.csv"
+    #         write_to_csv(csv_path, failed_package_list)
+    #         logging.info(f"write to csv file: {csv_path} finish.")
+
+    #         if args.update_csv_to_obs == "True":
+    #             if not update_csv_to_obs(csv_path, args.num):
+    #                 exit_code = 1
+
+    if args.write_to_yaml == "True":
         if failed_package_list:
             project_name = args.project.replace(":", "_")
-            time = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-            csv_path = f"{project_name}-{time}.csv"
-            write_to_csv(csv_path, failed_package_list)
-            logging.info(f"write to csv file: {csv_path} finish.")
+            yaml_path = f"{project_name}.yaml"
+            write_to_yaml(yaml_path, failed_package_list)
+            logging.info(f"write to yaml file: {yaml_path} finish.")
+            if args.post_to_api == "True":
+                project_parser.post_to_api(yaml_path)
 
-            if args.update_csv_to_obs == "True":
-                if not update_csv_to_obs(csv_path):
-                    exit_code = 1
     sys.exit(exit_code)
-
