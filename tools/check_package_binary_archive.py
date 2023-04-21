@@ -73,7 +73,7 @@ def read_yaml():
     rpmlist = []
     if os.path.exists(yaml_file):
         with open(yaml_file, "r", encoding='utf-8') as f:
-            file_msg = yaml.load(f, Loader=yaml.FullLoader)
+            file_msg = yaml.load(f, Loader=yaml.SafeLoader)
         for rpm in file_msg.values():
             rpmlist.extend(rpm)
     shutil.rmtree(gitee_repo_path)

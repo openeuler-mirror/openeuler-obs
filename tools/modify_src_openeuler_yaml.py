@@ -42,7 +42,7 @@ def git_clone(gitee_repo):
 def read_yaml(file_path):
     if os.path.exists(file_path):
         with open(file_path, "r", encoding='utf-8') as f:
-            file_msg = yaml.load(f, Loader=yaml.FullLoader)
+            file_msg = yaml.load(f, Loader=yaml.SafeLoader)
     return file_msg
 
 def write_yaml(dict_msg, file_path):
