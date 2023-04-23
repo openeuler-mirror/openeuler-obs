@@ -102,7 +102,11 @@ class SaveInfo(object):
         """
         if code_update_time == 0 or code_update_time:
             timestr = code_update_time
-            cmd = "ccb ls -p %s %s 2>/dev/null | grep \"\.rpm\"" % (prj, pkg)
+            if pkg == "kernel":
+                tmp_pkg = pkg + ":" + pkg
+            else:
+                tmp_pkg = pkg
+            cmd = "ccb ls -p %s %s 2>/dev/null | grep \"\.rpm\"" % (prj, tmp_pkg)
             log.debug(cmd)
             rpms = ' '.join(list(set(os.popen(cmd).read().replace(" ", "").replace('"', '').replace(",", "").split("\n")) - set([''])))
         else:
