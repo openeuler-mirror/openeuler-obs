@@ -85,7 +85,7 @@ def read_yaml(file_path):
     file_msg = {}
     if os.path.exists(file_path):
         with open(file_path, "r", encoding='utf-8') as f:
-            file_msg = yaml.load(f, Loader=yaml.FullLoader)
+            file_msg = yaml.load(f, Loader=yaml.SafeLoader)
     return file_msg
 
 def get_project_packages():
@@ -101,7 +101,7 @@ def get_project_packages():
         pkglist = []
         yaml_file = os.path.join(os.getcwd(), "config/%s/%s/to_check.yaml" % 
                 (args.branch, p))
-        file_msg = read_yaml(yaml_file)
+        file_msg = read_yaml(yaml_file, Loader=yaml.SafeLoader)
         if file_msg:
             if file_msg["packages"]:
                 for pkg in file_msg['packages']:
