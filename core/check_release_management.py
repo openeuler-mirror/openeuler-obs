@@ -815,13 +815,18 @@ class CheckReleaseManagement(object):
         check new version pkgs date
         '''
         error_flag = False
-        date = datetime.date.today()
-        today = date.day
+        current_year = datetime.datetime.now().year
+        current_month = datetime.datetime.now().month
+        current_day = datetime.datetime.now().day
         for branch,msg in change_info.items():
             log.info("{0} date check".format(branch))
             for pkg in msg:
-                yaml_date = int(pkg['date'].split('-')[2])
-                if today != yaml_date:
+                yaml_date_list = pkg['date'].split('-')
+                yaml_year = int(yaml_date_list[0])
+                yaml_month = int(yaml_date_list[1])
+                yaml_day = int(yaml_date_list[2])
+                sum_date_str = pkg['date'].replace('-','')
+                if current_year != yaml_year or current_month != yaml_month or current_day != yaml_day or len(sum_date_str) != 8:
                     error_flag = True
                     self.job_result['check_date'] = 'failed'
                     log.error("Wrong Date: <date:{0}>!!!".format(pkg['date']))
