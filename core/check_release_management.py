@@ -753,7 +753,6 @@ class CheckReleaseManagement(object):
                                 correct_branch_names = [line['name'] for line in correct_from[parent_branch]]
                                 if pkg['name'] in correct_branch_names:
                                     error_names.remove(pkg['name'])
-                                    break
                 if error_names:
                     error_flag =True
                     self.job_result['check_package_add'] = 'failed'
