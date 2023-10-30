@@ -767,7 +767,7 @@ class CheckReleaseManagement(object):
         check the key and brach from in your yaml compliance with rules
         """
         error_flag = False
-        keylist = ['source_dir', 'obs_from', 'name', 'destination_dir', 'obs_to', 'date']
+        keylist = ['source_dir', 'obs_from', 'name', 'destination_dir', 'obs_to', 'date', 'quality_level']
         for branch,info in change_info.items():
             if info:
                 log.info("branch:{} yaml key check".format(branch))
