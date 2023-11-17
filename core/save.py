@@ -116,9 +116,18 @@ class SaveInfo(object):
                 timestr = os.popen(cmd).read().replace("\n", "")
             else:
                 timestr = 0
-            cmd = "osc list -b %s %s 2>/dev/null | grep rpm | grep -v 'sw_64'" % (prj, pkg)
-            log.debug(cmd)
-            rpms = ' '.join(list(set(os.popen(cmd).read().replace(" ", "").split("\n")) - set([''])))
+            if prj == "openEuler:22.03:LTS":
+                archs = ['aarch64','x86_64']
+                tmp_rpms = []
+                for ar in archs:
+                    cmd = "osc list -b %s %s -r standard_%s -a %s 2>/dev/null | grep rpm" % (prj, pkg, ar, ar)
+                    log.debug(cmd)
+                    tmp_rpms.extend(os.popen(cmd).read().replace(" ", "").split("\n"))
+                rpms = ' '.join(list(set(tmp_rpms)))
+            else:
+                cmd = "osc list -b %s %s 2>/dev/null | grep rpm" % (prj, pkg)
+                log.debug(cmd)
+                rpms = ' '.join(list(set(os.popen(cmd).read().replace(" ", "").split("\n")) - set([''])))
         f_csv.writerow([timestr, pkg, rpms])
 
     def save_latest_info(self, branch_name):
