@@ -59,8 +59,10 @@ class MetaServiceManager(object):
             standard_dirs = os.listdir(os.path.join(self.release_management_path, branch))
             for standard_dir in standard_dirs:
                 file_path = os.path.join(self.release_management_path, branch, standard_dir)
-                if not os.path.isdir(file_path) or standard_dir == 'delete':
+                if not os.path.isdir(file_path):
                     standard_dirs.remove(standard_dir)
+            if 'delete' in standard_dirs:
+                standard_dirs.remove('delete')
             for c_dir in standard_dirs:
                 release_path = os.path.join(self.release_management_path, branch, c_dir, 'pckg-mgmt.yaml')
                 if os.path.exists(release_path):
