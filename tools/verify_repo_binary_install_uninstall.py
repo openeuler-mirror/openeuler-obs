@@ -101,7 +101,7 @@ def get_project_packages():
         pkglist = []
         yaml_file = os.path.join(os.getcwd(), "config/%s/%s/to_check.yaml" % 
                 (args.branch, p))
-        file_msg = read_yaml(yaml_file, Loader=yaml.SafeLoader)
+        file_msg = read_yaml(yaml_file)
         if file_msg:
             if file_msg["packages"]:
                 for pkg in file_msg['packages']:
