@@ -679,6 +679,8 @@ class SyncPckgMgmt(object):
                     release_delete_changes.append(yaml_changes)
                     self._collect_release_change_pkgs(branch_infos[0], del_change_pkgs)
             elif 'multi_version' in branch_infos:
+                log.info("******ignore multi_version change yaml file*********")
+                continue
                 msg, del_msg, prj_pkg = self._parse_yaml_msg(yaml_dict, "multi-new")
                 pkg_names = self._add_prj_meta_pkgs_service(msg, branch_infos)
                 del_change_pkgs = self._verify_meta_file(prj_pkg)
