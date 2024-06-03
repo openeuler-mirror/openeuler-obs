@@ -20,6 +20,7 @@ import shutil
 import argparse
 import logging
 import subprocess
+import yaml
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 current_path = os.path.join(os.path.split(os.path.realpath(__file__))[0])
@@ -42,6 +43,7 @@ class GiteeTagManager:
         self.pkgs_file = self.kwargs["pkgs_file"]
         self.tag_name = self.kwargs["tag_name"]
         self.tag_manage_type = self.kwargs["tag_manage_type"]  # add, delete
+        self.manage_path = self.kwargs['release_management_path']
         self.failed_list = []
 
     def run(self, cmd, timeout=600):
@@ -68,6 +70,24 @@ class GiteeTagManager:
             logging.error("tag_manage_type should be add or delete, but got {}".format(self.tag_manage_type))
             result = False
         return result
+
+    def get_pkg_list_from_release(self):
+        all_list = []
+        pkg_list = []
+        release_management_path = os.path.join(self.manage_path, self.branch)
+        logging.info("release_management_path: {}".format(release_management_path))
+        standard_dirs = ['baseos', 'everything-exclude-baseos', 'epol']
+        for c_dir in standard_dirs:
+            release_path = os.path.join(release_management_path, c_dir, 'pckg-mgmt.yaml')
+            if os.path.exists(release_path):
+                with open(release_path, 'r', encoding='utf-8') as f:
+                    result = yaml.load(f, Loader=yaml.FullLoader)
+                    all_list.extend(result['packages'])
+        for pkg in all_list:
+            pkg_list.append(pkg['name'])
+        logging.info("all packages numbers: {}".format(len(pkg_list)))
+        return pkg_list
+
 
     def get_pkg_list(self):
         """get package list"""
@@ -188,10 +208,12 @@ class GiteeTagManager:
         if not self.param_check():
             raise SystemExit("ERROR: param check error")
         # 2. get package list
-        pkg_list = self.get_pkg_list()
+        # pkg_list = self.get_pkg_list()
+        pkg_list = self.get_pkg_list_from_release()
         if not pkg_list:
             raise SystemExit("ERROR: there is no package to deal with")
         # 3. manage tag with ThreadPoolExecutor
+        logging.info("all packages names: {}".format(pkg_list))
         logging.info("start tag manager!")
         with ThreadPoolExecutor(max_workers=30) as job:
 
@@ -222,12 +244,13 @@ if __name__ == "__main__":
     par = argparse.ArgumentParser()
     par.add_argument("-u", "--user", default=None, help="gitee user", required=True)
     par.add_argument("-p", "--pwd", default=None, help="gitee password", required=True)
-    par.add_argument("-proj", "--project", default=None, help="obs project", required=True)
+    par.add_argument("-proj", "--project", default=None, help="obs project", required=False)
     par.add_argument("-br", "--branch", default=None, help="gitee branch", required=True)
     par.add_argument("-pkgs", "--pkgs", default=None, nargs="+", help="package list", required=False)
     par.add_argument("-pkgs_f", "--pkgs_file", default=None, help="package list file", required=False)
     par.add_argument("-tag_n", "--tag_name", default=None, help="tag name", required=True)
     par.add_argument("-tag_t", "--tag_manage_type", default=None, help="tag manage type: add, delete", required=True)
+    par.add_argument("-rm", "--manage_path", default=None, help="release management path", required=True)
     args = par.parse_args()
 
     kw = {
@@ -239,6 +262,7 @@ if __name__ == "__main__":
         "pkgs_file": args.pkgs_file,
         "tag_name": args.tag_name,
         "tag_manage_type": args.tag_manage_type,
+        "release_management_path": args.manage_path,
     }
     tag_manager = GiteeTagManager(**kw)
     tag_manager.manage()
