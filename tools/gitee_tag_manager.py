@@ -72,20 +72,26 @@ class GiteeTagManager:
         return result
 
     def get_pkg_list_from_release(self):
-        all_list = []
-        pkg_list = []
-        release_management_path = os.path.join(self.manage_path, self.branch)
-        logging.info("release_management_path: {}".format(release_management_path))
-        standard_dirs = ['baseos', 'everything-exclude-baseos', 'epol']
-        for c_dir in standard_dirs:
-            release_path = os.path.join(release_management_path, c_dir, 'pckg-mgmt.yaml')
-            if os.path.exists(release_path):
-                with open(release_path, 'r', encoding='utf-8') as f:
-                    result = yaml.load(f, Loader=yaml.FullLoader)
-                    all_list.extend(result['packages'])
-        for pkg in all_list:
-            pkg_list.append(pkg['name'])
-        logging.info("all packages numbers: {}".format(len(pkg_list)))
+        if self.pkgs:
+            pkgs = self.pkgs
+            pkgs = ",".join(pkgs)
+            pkg_list = re.split(r"[', \n]", pkgs)
+            pkg_list = list(filter(None, pkg_list))
+        else:
+            all_list = []
+            pkg_list = []
+            release_management_path = os.path.join(self.manage_path, self.branch)
+            logging.info("release_management_path: {}".format(release_management_path))
+            standard_dirs = ['baseos', 'everything-exclude-baseos', 'epol']
+            for c_dir in standard_dirs:
+                release_path = os.path.join(release_management_path, c_dir, 'pckg-mgmt.yaml')
+                if os.path.exists(release_path):
+                    with open(release_path, 'r', encoding='utf-8') as f:
+                        result = yaml.load(f, Loader=yaml.FullLoader)
+                        all_list.extend(result['packages'])
+            for pkg in all_list:
+                pkg_list.append(pkg['name'])
+            logging.info("all packages numbers: {}".format(len(pkg_list)))
         return pkg_list
 
 
