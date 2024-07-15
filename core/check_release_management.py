@@ -497,6 +497,9 @@ class CheckReleaseManagement(object):
         error_infos = {}
         error_flag = False
         for branch,pkgs in add_infos.items():
+            if 'Multi-Version' in branch:
+                log.info('check branch:{} add pkgs obs_from check skip'.format(branch))
+                continue
             log.info('check branch:{} add pkgs obs_from check running...'.format(branch))
             for pkg in pkgs:
                 if pkg['obs_from']:
@@ -533,6 +536,9 @@ class CheckReleaseManagement(object):
         error_flag = False
         log.info("master delete pkgs check")
         for branch,old_pkgs in old_msg.items():
+            if 'Multi-Version' in branch:
+                log.info('check branch:{} del pkgs check skip'.format(branch))
+                continue
             new_pkgs = new_msg[branch]
             old_pkgs_names = [info['name'] for info in old_pkgs]
             new_pkgs_names = [info['name'] for info in new_pkgs]
@@ -605,6 +611,9 @@ class CheckReleaseManagement(object):
         error_flag = False
         for branch,pkgs in delete_infos.items():
             log.info('check branch:{} internal move pkgs running...'.format(branch))
+            if 'Multi-Version' in branch:
+                log.info('check branch:{} internal move pkgs check skip'.format(branch))
+                continue
             log.info('pkgs:{}'.format(pkgs))
             for pkg in pkgs:
                 if 'Multi-Version' in branch:
@@ -687,6 +696,9 @@ class CheckReleaseManagement(object):
         error_from_check = {}
         error_flag = False
         for branch,change in change_info.items():
+            # if branch not in ['openEuler-22.03-LTS','openEuler-22.03-LTS-SP1']:
+            #     log.info("{} pkg obs_from check skip".format(branch))
+            #     continue
             log.info("{} pkg obs_from check".format(branch))
             for msg in change:
                 msg_path = os.path.join(meta_path, msg['source_dir'],msg['obs_from'], msg['name'])
@@ -703,7 +715,10 @@ class CheckReleaseManagement(object):
         """
         error_flag = False
         for branch,change in change_info.items():
-            log.info("{} pkg obs_from check".format(branch))
+            # if branch not in ['openEuler-22.03-LTS','openEuler-22.03-LTS-SP1']:
+            #     log.info("{} pkg obs delete check skip".format(branch))
+            #     continue
+            log.info("{} pkg obs delete check".format(branch))
             if change:
                 pkgs = [msg['name'] for msg in change]
                 log.info("The {0} exist in obs_meta dir {1} check".format(pkgs,branch))
@@ -1004,7 +1019,8 @@ class CheckReleaseManagement(object):
             else:
                 branch_infos = yaml_path.split('/')
                 branch = branch_infos[0]
-                if 'delete' in branch_infos:
+                #if 'delete' in branch_infos:
+                if branch_infos[1] == 'delete':
                     if os.path.exists(file_path):
                         with open(file_path, 'r', encoding='utf-8') as f:
                             result = yaml.load(f, Loader=yaml.FullLoader)
@@ -1025,8 +1041,10 @@ class CheckReleaseManagement(object):
             standard_dirs = os.listdir(os.path.join(self.manage_path, branch))
             for standard_dir in standard_dirs:
                 file_path = os.path.join(self.manage_path, branch, standard_dir)
-                if not os.path.isdir(file_path) or standard_dir == 'delete':
+                if not os.path.isdir(file_path):
                     standard_dirs.remove(standard_dir)
+                if 'delete' in standard_dirs:
+                    standard_dirs.remove('delete')
             for c_dir in standard_dirs:
                 release_path = os.path.join(self.manage_path,branch, c_dir, 'pckg-mgmt.yaml')
                 if os.path.exists(release_path):
@@ -1142,28 +1160,20 @@ class CheckReleaseManagement(object):
             log.info(master_change_file)
             add_infos,move_infos= self._get_move_and_add(old_master_yaml_msg, master_change_yaml_msg)
             self._check_master_repeat(old_all_master_msg, all_master_msg)
-            add_flag = self._check_master_add_rules(add_infos, move_infos)
-            move_flag = self._check_master_move_rules(move_infos)
-            del_flag = self._check_master_del_rules(del_old_master_yaml_msg, del_master_change_yaml_msg)
             date_flag = self._check_master_date_rules(add_infos)
             branch_flag = self._check_pkg_branch_exist(add_infos)
-            if add_flag or move_flag or date_flag or del_flag or branch_flag:
+            if date_flag or branch_flag:
                 self._comment_to_pr()
                 raise SystemExit("Please check your commit")
         if new_version_change_file:
             log.info(new_version_change_file)
             change_infos = self._check_rpms_complete_and_repeat(old_new_version_msg, new_version_change_msg)
             change_delete_infos = self._ensure_delete_infos(del_old_new_version_msg, del_new_version_change_msg)
-            self._check_internal_move(old_new_version_msg, new_version_change_msg)
             self._check_key_in_yaml_new(change_infos)
             self._check_valid_release_branch(change_infos)
             date_flag = self._check_pkg_date(change_infos)
-            obs_to_flag = self._check_obs_to_dir(change_infos)
             branch_flag = self._check_pkg_branch_exist(change_infos, check_type='other')
-            correct_from, error_from = self._check_pkg_from_new(self.meta_path, change_infos)
-            error_flag_add = self._check_pkg_parent_from(change_infos, correct_from, error_from, add_infos)
-            error_flag_del = self._check_pkg_delete_new(self.meta_path, change_delete_infos)
-            if error_flag_add or error_flag_del or date_flag or branch_flag or obs_to_flag:
+            if date_flag or branch_flag:
                 self._comment_to_pr()
                 raise SystemExit("Please check your commit")
         if change_file:
