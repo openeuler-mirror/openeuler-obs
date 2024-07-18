@@ -782,12 +782,12 @@ class CheckReleaseManagement(object):
         check the key and brach from in your yaml compliance with rules
         """
         error_flag = False
-        keylist = ['source_dir', 'obs_from', 'name', 'destination_dir', 'obs_to', 'date', 'quality_level', 'c_dir']
+        keylist = ['source_dir', 'obs_from', 'name', 'destination_dir', 'obs_to', 'date', 'quality_level']
         for branch,info in change_info.items():
             if info:
                 log.info("branch:{} yaml key check".format(branch))
                 for msg in info:
-                    if len(msg.keys()) == 7 or len(msg.keys()) == 6:
+                    if len(msg.keys()) == 7 or len(msg.keys()) == 6 or len(msg.keys()) == 4:
                         for key in msg.keys():
                             if key not in keylist:
                                 error_flag = True
@@ -1019,7 +1019,6 @@ class CheckReleaseManagement(object):
             else:
                 branch_infos = yaml_path.split('/')
                 branch = branch_infos[0]
-                #if 'delete' in branch_infos:
                 if branch_infos[1] == 'delete':
                     if os.path.exists(file_path):
                         with open(file_path, 'r', encoding='utf-8') as f:
@@ -1051,7 +1050,7 @@ class CheckReleaseManagement(object):
                     with open(release_path, 'r', encoding='utf-8') as f:
                         result = yaml.load(f, Loader=yaml.FullLoader)
                         for pkg in result['packages']:
-                            pkg['c_dir'] = c_dir
+                            # pkg['c_dir'] = c_dir
                             all_branch_pkgs.append(pkg)
                         # all_branch_pkgs.extend(result['packages'])
         return all_branch_pkgs
@@ -1112,8 +1111,9 @@ class CheckReleaseManagement(object):
         comment_tips = []
         jp = JenkinsProxy("https://openeulerjenkins.osinfra.cn/", self.jenkins_user, self.jenkins_api_token)
         build_url = self.jenkins_build_url
+        log_build_url = "{}/console".format(build_url)
         job_name, job_id = jp.get_job_path_build_no_from_build_url(build_url)
-        comment_tips.append("1)本次构建号为{2}/{1}，点击可查看构建详情: <a href={0}>#{1}</a>\n".format(build_url,job_id,job_name))
+        comment_tips.append("1)本次构建号为{2}/{1}，点击可查看构建详情: <a href={0}>#{1}</a>\n".format(log_build_url,job_id,job_name))
         comment_tips.append("2)若有检查失败项目，请勿合入")
         comment_tips.append("3)若您对如何创建提交PR有疑问，" \
                        "可参考<a href=https://gitee.com/openeuler/release-management/blob/master/Guidebook/openEuler%E5%BC%80%E5%8F%91%E8%80%85%E6%8F%90%E4%BA%A4PR%E6%8C%87%E5%AF%BC%E6%96%87%E6%A1%A3.md>" \
