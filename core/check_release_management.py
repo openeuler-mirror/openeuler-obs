@@ -150,7 +150,7 @@ class CheckReleaseManagement(object):
                     if 'master' in log_list[2]:
                         master_new_file_path.append(log_list[2])
                     elif 'multi_version' in log_list[2]:
-                        master_new_file_path.append(log_list[2])
+                        multi_version_file_path.append(log_list[2])
                     else:
                         branch_infos = log_list[2].split('/')
                         if len(branch_infos) == 3:
@@ -162,15 +162,15 @@ class CheckReleaseManagement(object):
                     if 'master' in log_list[1]:
                         master_new_file_path.append(log_list[1])
                     elif 'multi_version' in log_list[1]:
-                        master_new_file_path.append(log_list[1])
+                        multi_version_file_path.append(log_list[1])
                     else:
                         branch_infos = log_list[1].split('/')
                         if len(branch_infos) == 3:
                             new_versin_file_path.append(log_list[1])
                         else:
                             new_file_path.append(log_list[1])
-        if new_file_path or master_new_file_path or new_versin_file_path:
-            return new_file_path,master_new_file_path,new_versin_file_path
+        if multi_version_file_path or master_new_file_path or new_versin_file_path:
+            return multi_version_file_path,master_new_file_path,new_versin_file_path
         else:
             log.info("There are no file need to check!!!")
             self._comment_to_pr()
@@ -1016,6 +1016,16 @@ class CheckReleaseManagement(object):
                         all_del_msg[branch] = []
                     else:
                         all_pack_msg[branch] = []
+            elif vtype == 'multi_version':
+                if os.path.exists(file_path):
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        result = yaml.load(f, Loader=yaml.FullLoader)
+                        yaml_packages = [pkg for pkg in result['packages']]
+                    if all_pack_msg.get(file_path,''):
+                        full_packags = all_pack_msg[file_path] + yaml_packages
+                        all_pack_msg[file_path] = full_packags
+                    else:
+                        all_pack_msg[file_path] = yaml_packages
             else:
                 branch_infos = yaml_path.split('/')
                 branch = branch_infos[0]
@@ -1058,7 +1068,7 @@ class CheckReleaseManagement(object):
     def _get_master_yaml_msg(self, path_list, manage_path):
         all_master_pkgs = []
         if path_list:
-           all_master_pkgs = self._get_complete_yaml_pkgs('master')
+            all_master_pkgs = self._get_complete_yaml_pkgs('master')
         return all_master_pkgs
 
     def _check_pkg_branch_exist(self, add_infos, check_type='master'):
@@ -1141,18 +1151,16 @@ class CheckReleaseManagement(object):
         """
         change = self._get_repo_change_file('openeuler',
                 'release-management', self.manage_path)
-        change_file,master_change_file,new_version_change_file = self._parse_commit_file(change)
-        all_change_files = [*change_file, *master_change_file, *new_version_change_file]
+        multi_version_change_file,master_change_file,new_version_change_file = self._parse_commit_file(change)
+        all_change_files = [*multi_version_change_file, *master_change_file, *new_version_change_file]
         self._check_yaml_format(all_change_files, self.manage_path)
-        all_yaml_msg = self._get_allkey_msg(change_file, self.manage_path)
-        change_yaml_msg = self._get_yaml_msg(change_file, self.manage_path)
-        all_master_yaml_msg = self._get_allkey_msg(master_change_file, self.manage_path)
         master_change_yaml_msg,del_master_change_yaml_msg = self._get_new_version_yaml_msg(master_change_file, self.manage_path)
+        multi_version_change_yaml_msg,del_multi_version_change_yaml_msg = self._get_new_version_yaml_msg(multi_version_change_file, self.manage_path, vtype='multi_version')
         all_master_msg = self._get_master_yaml_msg(master_change_file, self.manage_path)
         new_version_change_msg,del_new_version_change_msg = self._get_new_version_yaml_msg(new_version_change_file, self.manage_path,vtype='newversion')
         self._rollback_get_msg(self.manage_path)
-        old_yaml_msg = self._get_yaml_msg(change_file, self.manage_path)
         old_master_yaml_msg,del_old_master_yaml_msg = self._get_new_version_yaml_msg(master_change_file, self.manage_path)
+        old_multi_version_change_yaml_msg,old_del_multi_version_change_yaml_msg = self._get_new_version_yaml_msg(multi_version_change_file, self.manage_path, vtype='multi_version')
         old_all_master_msg = self._get_master_yaml_msg(master_change_file, self.manage_path)
         old_new_version_msg,del_old_new_version_msg = self._get_new_version_yaml_msg(new_version_change_file, self.manage_path,vtype='newversion')
         add_infos = {}
@@ -1176,17 +1184,14 @@ class CheckReleaseManagement(object):
             if date_flag or branch_flag:
                 self._comment_to_pr()
                 raise SystemExit("Please check your commit")
-        if change_file:
-            log.info(change_file)
-            self._check_rpms_integrity(old_yaml_msg, change_yaml_msg, change_file)
-            change_msg_list = self._get_diff_msg(old_yaml_msg, change_yaml_msg, change_file)
-            self._ensure_delete_tags(change_msg_list, old_yaml_msg, all_yaml_msg)
-            self._check_key_in_yaml(change_msg_list, change_file)
-            error_flag1 = self._check_pkg_from(self.meta_path, change_msg_list, change_file, all_yaml_msg)
-            error_flag2 = self._check_date_time(change_msg_list, change_file)
-            error_flag3 = self._check_same_pckg(change_file, change_yaml_msg)
-            error_flag4 = self._check_branch_msg(change_msg_list, change_file, self.manage_path)
-            if error_flag1 or error_flag2 or error_flag3 or error_flag4:
+        if multi_version_change_file:
+            log.info(multi_version_change_file)
+            multi_add_infos, multi_del_infos= self._get_move_and_add(old_multi_version_change_yaml_msg, multi_version_change_yaml_msg)
+            log.info(multi_add_infos)
+            log.info(multi_del_infos)
+            date_flag = self._check_master_date_rules(multi_add_infos)
+            branch_flag = self._check_pkg_branch_exist(multi_add_infos)
+            if date_flag or branch_flag:
                 self._comment_to_pr()
                 raise SystemExit("Please check your commit")
         self._comment_to_pr()
