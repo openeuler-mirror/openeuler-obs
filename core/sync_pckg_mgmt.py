@@ -832,7 +832,7 @@ class SyncPckgMgmt(object):
                     if 'master' in log_list[2]:
                         master_new_file_path.append(log_list[2])
                     elif 'multi_version' in log_list[2]:
-                        master_new_file_path.append(log_list[2])
+                        multi_version_file_path.append(log_list[2])
                     else:
                         branch_infos = log_list[2].split('/')
                         if len(branch_infos) == 3:
@@ -844,7 +844,7 @@ class SyncPckgMgmt(object):
                     if 'master' in log_list[1]:
                         master_new_file_path.append(log_list[1])
                     elif 'multi_version' in log_list[1]:
-                        master_new_file_path.append(log_list[1])
+                        multi_version_file_path.append(log_list[1])
                     else:
                         branch_infos = log_list[1].split('/')
                         if len(branch_infos) == 3:
