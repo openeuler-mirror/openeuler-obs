@@ -78,7 +78,7 @@ class Runner(object):
         return:
         """
         log.debug("save latest info")
-        si = SaveInfo(self.kwargs["gitee_user"], self.kwargs["gitee_pwd"])
+        si = SaveInfo(self.kwargs["gitee_user"], self.kwargs["gitee_pwd"], self.kwargs["build_type"])
         si.save_latest_info(self.kwargs["branch"])
 
     def _update_package(self):

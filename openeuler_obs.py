@@ -120,6 +120,7 @@ par.add_argument("-amsb", "--align_meta_service_branch", default=None,
 par.add_argument("-ju", "--jenkins_user", help="jekins user name", required=False)
 par.add_argument("-jt", "--jenkins_api_token", help="jenkins api token", required=False)
 par.add_argument("-jbu", "--jenkins_build_url", help="jenkins build url", required=False)
+par.add_argument("-bt", "--build_type", default=None, help="eulermaker build type", required=False)
 
 args = par.parse_args()
 #apply
@@ -170,7 +171,8 @@ kw = {
         "align_meta_service_branch": args.align_meta_service_branch,
         "jenkins_user": args.jenkins_user,
         "jenkins_api_token": args.jenkins_api_token,
-        "jenkins_build_url": args.jenkins_build_url
+        "jenkins_build_url": args.jenkins_build_url,
+        "build_type": args.build_type
         }
 
 run = Runner(**kw)
