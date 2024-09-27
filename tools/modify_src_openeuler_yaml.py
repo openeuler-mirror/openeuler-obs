@@ -40,9 +40,10 @@ def git_clone(gitee_repo):
         sys.exit(1)
  
 def read_yaml(file_path):
+    file_msg = []
     if os.path.exists(file_path):
         with open(file_path, "r", encoding='utf-8') as f:
-            file_msg = yaml.load(f, Loader=yaml.SafeLoader)
+            file_msg = yaml.load(f, Loader=yaml.FullLoader)
     return file_msg
 
 def write_yaml(dict_msg, file_path):
@@ -64,18 +65,19 @@ def modify_file_msg(release_management_path, yaml_path_dict):
         pkg_name = pckg['name']
         add_msg = {'name': pckg['destination_dir'], 'type': 'protected', 'create_from': pckg['source_dir']}
         openeuler_path = yaml_path_dict.get(pkg_name, "")
-        openeuler_msg = read_yaml(openeuler_path)           
-        for br in openeuler_msg['branches']:
-            if br['name'] == pckg['destination_dir']:
-                flag = True
-                break
-        if not flag:
-            openeuler_msg['branches'].append(add_msg)
-            write_yaml(openeuler_msg, openeuler_path)
-            print("Modify yaml: ", openeuler_path)
-            modify_list.append(pkg_name)
+        openeuler_msg = read_yaml(openeuler_path)
+        if openeuler_msg:          
+            for br in openeuler_msg['branches']:
+                if br['name'] == pckg['destination_dir']:
+                    flag = True
+                    break
+            if not flag:
+                openeuler_msg['branches'].append(add_msg)
+                write_yaml(openeuler_msg, openeuler_path)
+                print("Modify yaml: ", openeuler_path)
+                modify_list.append(pkg_name)
 
-    write_yaml(modify_list, './modify_pkg.txt')     # modify package name list
+    write_yaml(modify_list, './modify_pkg.txt')
     print('modify yaml number: ', len(modify_list))
 
 
@@ -87,7 +89,6 @@ def get_yaml_path(yaml_root_dir):
             if each_file.endswith('.yaml') and ('src-openeuler' in file_path):
                 package_name = each_file[:-5]
                 package_dict[package_name] = file_path
-
     return package_dict
 
 
