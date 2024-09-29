@@ -82,7 +82,9 @@ class GiteeTagManager:
             pkg_list = []
             release_management_path = os.path.join(self.manage_path, self.branch)
             logging.info("release_management_path: {}".format(release_management_path))
-            standard_dirs = ['baseos', 'everything-exclude-baseos', 'epol']
+            standard_dirs = ['baseos', 'everything-exclude-baseos']
+            if 'epol' in self.project:
+                standard_dirs = ['epol']
             for c_dir in standard_dirs:
                 release_path = os.path.join(release_management_path, c_dir, 'pckg-mgmt.yaml')
                 if os.path.exists(release_path):
