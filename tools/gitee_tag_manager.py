@@ -168,9 +168,40 @@ class GiteeTagManager:
         logging.info("finish add tag for package: {}".format(pkg))
         return tag_flag
 
-    def delete_tag(self, pkg):
+    def delete_tag(self, pkg, pkg_path):
         """pkg delete tag"""
-        pass
+        logging.info("start delete tag for package: {}".format(pkg))
+        tag_flag = False
+
+        # 1. check if tag exists
+        _, tags, _ = self.run(f"cd {pkg_path} && git tag && cd - > /dev/null")
+        if self.tag_name not in tags:
+            logging.warning("package: {} tag does not exist!".format(pkg))
+            tag_flag = True
+            return tag_flag
+
+        # 2. delete tag locally
+        cmd_delete_local = f"cd {pkg_path} && git tag -d {self.tag_name} && cd - > /dev/null"
+        code_delete_local, _, _ = self.run(cmd_delete_local)
+        if code_delete_local:
+            logging.error("Failed to delete local tag for package: {}".format(pkg))
+            return tag_flag
+
+        # 3. delete tag remotely
+        cmd_delete_remote = f"cd {pkg_path} && git push origin :refs/tags/{self.tag_name} && cd - > /dev/null"
+        code_delete_remote, _, _ = self.run(cmd_delete_remote)
+        if code_delete_remote:
+            logging.error("Failed to delete remote tag for package: {}".format(pkg))
+            return tag_flag
+
+        # 4. verify deletion
+        _, tags, _ = self.run(f"cd {pkg_path} && git tag && cd - > /dev/null")
+        if self.tag_name not in tags:
+            logging.info("package: {} delete tag: {} ok!".format(pkg, self.tag_name))
+            tag_flag = True
+
+        logging.info("finish delete tag for package: {}".format(pkg))
+        return tag_flag
 
     def tag_manage(self, pkg, temp_path):
         """add or delete tag for pkg"""
@@ -181,7 +212,7 @@ class GiteeTagManager:
                 logging.error("pkg: {} add tag: {} failed!".format(pkg, self.tag_name))
                 tag_flag = False
         else:
-            if not self.delete_tag(pkg):
+            if not self.delete_tag(pkg, pkg_path):
                 logging.error("pkg: {} delete tag: {} failed!".format(pkg, self.tag_name))
                 tag_flag = False
         self.run("rm -rf {}".format(temp_path))
