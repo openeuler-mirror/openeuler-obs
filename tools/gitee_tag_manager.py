@@ -21,6 +21,8 @@ import argparse
 import logging
 import subprocess
 import yaml
+import requests
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 current_path = os.path.join(os.path.split(os.path.realpath(__file__))[0])
@@ -44,6 +46,8 @@ class GiteeTagManager:
         self.tag_name = self.kwargs["tag_name"]
         self.tag_manage_type = self.kwargs["tag_manage_type"]  # add, delete
         self.manage_path = self.kwargs['release_management_path']
+        self.source = self.kwargs['source']
+        self.file_url = self.kwargs['file_url']
         self.failed_list = []
 
     def run(self, cmd, timeout=600):
@@ -96,6 +100,18 @@ class GiteeTagManager:
             logging.info("all packages numbers: {}".format(len(pkg_list)))
         return pkg_list
 
+    def get_pkg_list_from_file(self):
+        url = self.file_url
+        response = requests.get(url)
+        if response.status_code == 200:
+            content = response.content.decode('utf-8')
+            pkg_list = re.split(r"[', \n]", content)
+        else:
+            logging.error("get commitid file failed: {}".format(url))
+            sys.exit()
+        return pkg_list
+
+
 
     def get_pkg_list(self):
         """get package list"""
@@ -122,8 +138,12 @@ class GiteeTagManager:
         _, temp_path, _ = self.run("mktemp -d")
         temp_path = temp_path.strip()
         pkg_path = os.path.join(temp_path, pkg)
-        clone_cmd = "git clone --depth=1 https://%s:%s@gitee.com/src-openeuler/%s -b %s %s" % (
-            self.gitee_user, self.gitee_pwd, pkg, self.branch, pkg_path)
+        if self.source in ['commitid','delete']:
+            clone_cmd = "git clone https://%s:%s@gitee.com/src-openeuler/%s %s" % (
+            self.gitee_user, self.gitee_pwd, pkg, pkg_path)
+        else:
+            clone_cmd = "git clone --depth=1 https://%s:%s@gitee.com/src-openeuler/%s -b %s %s" % (
+                self.gitee_user, self.gitee_pwd, pkg, self.branch, pkg_path)
         pull_cmd = "git -C %s pull" % pkg_path
         try:
             for i in range(5):
@@ -154,7 +174,11 @@ class GiteeTagManager:
             return tag_flag
 
         # 2. add tag
-        cmd = f"cd {pkg_path} && git tag -a {self.tag_name} -m 'new tag' && git push origin {self.tag_name} && cd - > /dev/null"
+        if self.source == 'commitid':
+            commit_id = pkg[1]
+            cmd = f"cd {pkg_path} && git tag -a {self.tag_name} -m 'new tag' {commit_id} && git push origin {self.tag_name} && cd - > /dev/null"
+        else:
+            cmd = f"cd {pkg_path} && git tag -a {self.tag_name} -m 'new tag' && git push origin {self.tag_name} && cd - > /dev/null"
         code_push, _, _ = self.run(cmd)
         if code_push:
             return tag_flag
@@ -221,6 +245,11 @@ class GiteeTagManager:
     def pkg_tag_manage(self, pkg):
         """tag manager for every package"""
         # 1. clone package
+        if self.source == 'commitid':
+            pkg_commit = pkg.split(':')
+            logging.info("current pkg name is: {}".format(pkg_commit[0]))
+            logging.info("current pkg commitid is: {}".format(pkg_commit[1]))
+        pkg, commit = pkg_commit[0], pkg_commit[1]
         try:
             clone_flag, temp_path = self.clone_package(pkg)
             if not clone_flag:
@@ -248,7 +277,10 @@ class GiteeTagManager:
             raise SystemExit("ERROR: param check error")
         # 2. get package list
         # pkg_list = self.get_pkg_list()
-        pkg_list = self.get_pkg_list_from_release()
+        if self.source == 'commitid':
+            pkg_list = self.get_pkg_list_from_file()
+        else:
+            pkg_list = self.get_pkg_list_from_release()
         if not pkg_list:
             raise SystemExit("ERROR: there is no package to deal with")
         # 3. manage tag with ThreadPoolExecutor
@@ -258,8 +290,9 @@ class GiteeTagManager:
 
             obj_list = []
             for pkg in pkg_list:
-                obj = job.submit(self.pkg_tag_manage, pkg)
-                obj_list.append(obj)
+                if pkg:
+                    obj = job.submit(self.pkg_tag_manage, pkg)
+                    obj_list.append(obj)
 
             result = []
             for future in as_completed(obj_list):
@@ -290,6 +323,8 @@ if __name__ == "__main__":
     par.add_argument("-tag_n", "--tag_name", default=None, help="tag name", required=True)
     par.add_argument("-tag_t", "--tag_manage_type", default=None, help="tag manage type: add, delete", required=True)
     par.add_argument("-rm", "--manage_path", default=None, help="release management path", required=True)
+    par.add_argument("-s", "--source", default=None, help="use commitid or last commit", required=True)
+    par.add_argument("-f", "--file_url", default=None, help="pkg commitid file url", required=True)
     args = par.parse_args()
 
     kw = {
@@ -302,6 +337,8 @@ if __name__ == "__main__":
         "tag_name": args.tag_name,
         "tag_manage_type": args.tag_manage_type,
         "release_management_path": args.manage_path,
+        "source":args.source,
+        "file_url":args.file_url,
     }
     tag_manager = GiteeTagManager(**kw)
     tag_manager.manage()
