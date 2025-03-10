@@ -54,6 +54,8 @@ class SyncPckgMgmt(object):
         """
         if os.path.exists(self.release_management_path):
             os.chdir(self.release_management_path)
+            permission_cmd = "git config --global --add safe.directory %s" % self.release_management_path
+            os.popen(permission_cmd)
             cmd = "git diff --name-status HEAD~1 HEAD~0 | grep pckg-mgmt.yaml"
             result = os.popen(cmd).read().split('\n')
             change_file = [x for x in result if x != '']
