@@ -50,6 +50,7 @@ class SaveInfo(object):
         self.gitee_user = gitee_user
         self.gitee_pwd = gitee_pwd
         self.build_type = build_type
+        self.csv_data = []
 
     def _download(self):
         """
@@ -148,13 +149,14 @@ class SaveInfo(object):
                 else:
                     log.info("The last build of the %s project is not specified, but %s" % (prj, bt))
 
-    def _save_latest_info_by_pkg(self, prj, pkg, f_csv, code_update_time):
+    def _save_latest_info_by_pkg(self, prj, pkg, code_update_time):
         """
         save latest info of package
         """
         if code_update_time == 0 or code_update_time:
             rpms = self._get_pkg_rpmlist(prj, pkg)
-            f_csv.writerow([code_update_time, pkg, rpms])
+            data_list = [code_update_time, pkg, rpms]
+            self.csv_data.append(data_list)
 
     def save_latest_info(self, branch_name):
         """
@@ -169,57 +171,60 @@ class SaveInfo(object):
             if self.build_type == "specified":
                 self._save_latest_info_specified(prj_list, latest_rpm_file)
             else:
-                with open(latest_rpm_file, "w") as f:
-                    f_csv = csv.writer(f)
-                    for prj in prj_list:
-                        var_list = []
-                        pkg_list = []
-                        cmd = f"ccb select builds build_type=full,incremental status=201,202 -f create_time,build_type os_project={prj} build_target.architecture=x86_64 --sort create_time:desc --size 1 2>/dev/null"
-                        log.debug(cmd)
-                        res = os.popen(cmd).read()
-                        if res:
-                            data = json.loads(res)
-                            code_update_time = data[0]['_source']['create_time'].partition('.')[0].replace("T", " ").replace("-", "").replace(":", "-")
-                            bt = data[0]['_source']['build_type']
-                            log.info("code_update_time:%s" % code_update_time)
-                            log.info("build_type:%s" % bt)
+                for prj in prj_list:
+                    var_list = []
+                    pkg_list = []
+                    cmd = f"ccb select builds build_type=full,incremental status=201,202 -f create_time,build_type os_project={prj} build_target.architecture=x86_64 --sort create_time:desc --size 1 2>/dev/null"
+                    log.debug(cmd)
+                    res = os.popen(cmd).read()
+                    if res:
+                        data = json.loads(res)
+                        code_update_time = data[0]['_source']['create_time'].partition('.')[0].replace("T", " ").replace("-", "").replace(":", "-")
+                        bt = data[0]['_source']['build_type']
+                        log.info("code_update_time:%s" % code_update_time)
+                        log.info("build_type:%s" % bt)
 
-                            cmd = f"ccb select projects os_project={prj} submit_order -f my_specs 2>/dev/null | grep spec_url"
-                            log.debug(cmd)
-                            res = os.popen(cmd).read().split("\n")
-                            spec_url = [x for x in res if x != '']
-                            if spec_url:
-                                for url in spec_url:
-                                    p = url.split("/")[-1].split(".git")[0]
-                                    if p not in pkg_list:
-                                        pkg_list.append(p)
+                        cmd = f"ccb select projects os_project={prj} submit_order -f my_specs 2>/dev/null | grep spec_url"
+                        log.debug(cmd)
+                        res = os.popen(cmd).read().split("\n")
+                        spec_url = [x for x in res if x != '']
+                        if spec_url:
+                            for url in spec_url:
+                                p = url.split("/")[-1].split(".git")[0]
+                                if p not in pkg_list:
+                                    pkg_list.append(p)
+                        else:
+                            if not self.release_management_files_dir:
+                                self._download_release_management()
+                            if "epol" in prj.lower():
+                                standard_dirs = ['epol']
                             else:
-                                if not self.release_management_files_dir:
-                                    self._download_release_management()
-                                if "epol" in prj.lower():
-                                    standard_dirs = ['epol']
-                                else:
-                                    standard_dirs = ['everything-exclude-baseos', 'baseos']
-                                release_management_path = os.path.join(self.release_management_files_dir, branch_name)
-                                for c_dir in standard_dirs:
-                                    yaml_path = os.path.join(release_management_path, c_dir, 'pckg-mgmt.yaml')
-                                    if os.path.exists(yaml_path):
-                                        with open(yaml_path, 'r', encoding='utf-8') as f:
-                                            result = yaml.safe_load(f)
-                                        for line in result['packages']:
-                                            name = line.get("name")
-                                            if name not in pkg_list:
-                                                pkg_list.append(name)
-                        for pkg in pkg_list:
-                            var_list.append(([prj, pkg, f_csv, code_update_time], None))
-                        try:
-                            pool = threadpool.ThreadPool(20)
-                            requests = threadpool.makeRequests(self._save_latest_info_by_pkg, var_list)
-                            for req in requests:
-                                pool.putRequest(req)
-                            pool.wait()
-                        except KeyboardInterrupt as e:
-                            log.error(e)
+                                standard_dirs = ['everything-exclude-baseos', 'baseos']
+                            release_management_path = os.path.join(self.release_management_files_dir, branch_name)
+                            for c_dir in standard_dirs:
+                                yaml_path = os.path.join(release_management_path, c_dir, 'pckg-mgmt.yaml')
+                                if os.path.exists(yaml_path):
+                                    with open(yaml_path, 'r', encoding='utf-8') as f:
+                                        result = yaml.safe_load(f)
+                                    for line in result['packages']:
+                                        name = line.get("name")
+                                        if name not in pkg_list:
+                                            pkg_list.append(name)
+                    for pkg in pkg_list:
+                        var_list.append(([prj, pkg, code_update_time], None))
+                    try:
+                        pool = threadpool.ThreadPool(20)
+                        requests = threadpool.makeRequests(self._save_latest_info_by_pkg, var_list)
+                        for req in requests:
+                            pool.putRequest(req)
+                        pool.wait()
+                    except KeyboardInterrupt as e:
+                        log.error(e)
+
+            with open(latest_rpm_file, 'w', newline='', encoding='utf-8') as f:
+                f_csv = csv.writer(f)
+                for line in self.csv_data:
+                    f_csv.writerow(line)
             cmd = f"sort -u -r {latest_rpm_file} -o {latest_rpm_file}"
             if os.system(cmd) != 0:
                 log.error("sort file fail")
